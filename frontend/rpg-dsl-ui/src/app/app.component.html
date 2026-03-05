@@ -1,0 +1,44 @@
+<div class="layout">
+  <!-- LEFT COLUMN -->
+  <section class="leftCol">
+    <div class="panel">
+      <h2>DSL Editor</h2>
+
+      <textarea [(ngModel)]="source" spellcheck="false"></textarea>
+
+      <div class="buttons">
+        <button class="btn primary" (click)="validate()" [disabled]="validating">Validate</button>
+        <button class="btn primary" (click)="start()" [disabled]="starting">Start</button>
+      </div>
+    </div>
+
+    <div class="panel diagnosticsPanel">
+      <h3>Diagnostics</h3>
+
+      <div class="diag" *ngIf="diagnostics.length === 0">Nincs hiba.</div>
+
+      <ul class="diag-list" *ngIf="diagnostics.length > 0">
+        <li *ngFor="let d of diagnostics" [class]="severityClass(d)">
+          ({{d.severity}}) line {{d.line}} col {{d.col}} — {{d.message}}
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- RIGHT COLUMN -->
+  <section class="rightCol panel">
+    <h2>Chat</h2>
+
+    <div class="chat">
+      <div class="msg" *ngFor="let m of chat" [class.user]="m.from==='user'" [class.system]="m.from==='system'">
+        <span class="from">{{m.from}}:</span>
+        <span class="text">{{m.text}}</span>
+      </div>
+    </div>
+
+    <div class="input">
+      <input [(ngModel)]="chatInput" (keydown.enter)="send()" placeholder="Írj valamit..." />
+      <button class="btn primary" (click)="send()">Send</button>
+    </div>
+  </section>
+</div>
