@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: RPG DSL Backend API
+  version: 1.0.0
+  description: |
+    OpenAPI-first backend for a scene-driven RPG DSL editor and runtime.
+    Endpoints: validate/start/turn.
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: DSL
+  - name: Game
+
+paths:
+  /api/validate:
+    post:
+      tags: [DSL]
+      summary: Validate DSL source (ANTLR syntax + semantic validation)
+      operationId: validateDsl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidateRequest"
+      responses:
+        "200":
+          description: Validation result (diagnostics list; empty means OK)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidateResponse"
+        "400":
+          description: Invalid request payload
+
+  /api/start:
+    post:
+      tags: [Game]
+      summary: Start a game session from DSL source
+      operationId: startGame
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartRequest"
+      responses:
+        "200":
+          description: Session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartResponse"
+        "422":
+          description: DSL has validation errors (cannot start)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartResponse"
+        "400":
+          description: Invalid request payload
+
+  /api/turn/{sessionId}:
+    post:
+      tags: [Game]
+      summary: Submit a player message (chat turn) for an existing session
+      operationId: submitTurn
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Session identifier returned by /api/start
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TurnRequest"
+      responses:
+        "200":
+          description: Turn resolved (intent chosen, effects applied, new scene/state)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TurnResponse"
+        "404":
+          description: Session not found
+        "400":
+          description: Invalid request payload
+
+components:
+  schemas:
+    ValidateRequest:
+      type: object
+      required: [source]
+      properties:
+        source:
+          type: string
+          minLength: 1
+          description: Full DSL source text
+
+    StartRequest:
+      type: object
+      required: [source]
+      properties:
+        source:
+          type: string
+          minLength: 1
+          description: Full DSL source text to compile and start
+
+    TurnRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          description: Player chat message
+
+    ValidateResponse:
+      type: object
+      required: [diagnostics]
+      properties:
+        diagnostics:
+          type: array
+          items:
+            $ref: "#/components/schemas/Diagnostic"
+
+    StartResponse:
+      type: object
+      required: [diagnostics]
+      properties:
+        sessionId:
+          type: string
+          nullable: true
+          description: New session ID if started
+        text:
+          type: string
+          nullable: true
+          description: Initial narration returned to client
+        diagnostics:
+          type: array
+          items:
+            $ref: "#/components/schemas/Diagnostic"
+          description: Validation errors/warnings if start failed (or empty if OK)
+
+    TurnResponse:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: Narration / response to show in chat
+
+    Diagnostic:
+      type: object
+      required: [line, character, severity, message]
+      properties:
+        line:
+          type: integer
+          minimum: 0
+          description: 1-based line number if available; 0 if unknown
+        character:
+          type: integer
+          minimum: 0
+          description: 1-based column number if available; 0 if unknown
+        severity:
+          type: string
+          enum: [ERROR, WARN, INFO]
+        code:
+          type: string
+          nullable: true
+          description: Optional machine-readable code (e.g., SYNTAX_ERROR)
+        message:
+          type: string
