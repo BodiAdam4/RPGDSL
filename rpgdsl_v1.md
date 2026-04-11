@@ -331,6 +331,8 @@ rules {
 
 ### Rule meghívása
 
+A szabályok a `use` kulcsszóval hívhatók meg tetszőleges akcióblokkon belülről (például `on enter`, `on exit` vagy `on <intent>` blokkokban).
+
 ```dsl
 use HealIfNeeded
 use GiveReward(HealingPotion, 2)
@@ -352,7 +354,7 @@ A DSL a programozási operátorok helyett olvashatóbb, domain-specifikus megfog
 ### Megléti vizsgálat
 
 - `has itemId`
-- `dont have itemId`
+- `does not have itemId`
 
 ### Összehasonlítások
 
@@ -369,7 +371,7 @@ A DSL a programozási operátorok helyett olvashatóbb, domain-specifikus megfog
 
 ```
 has HealingPotion
-dont have RustyKey
+does not have RustyKey
 hp is less than 6
 gold is greater than 10
 state is equal to "alert"
@@ -389,6 +391,7 @@ has HealingPotion and hp is less than 6
 | `multiply ... by ...` | `multiply gold by 2`                           |
 | `divide ... by ...`   | `divide gold by 2`                             |
 | `narrate`             | `narrate "The old lock clicks open."`          |
+| `random <esély> { ... }` | `random 30 { narrate "A bat flies by." }`    |
 | `actorId says`        | `GateGuard says "No one enters without permission."` |
 | `go to`                | `go to courtyard`                               |
 
@@ -599,6 +602,9 @@ scene gate {
 
   on enter {
     narrate "The guards turn toward you as you approach."
+    random 30 {
+      narrate "A bat flies by in the dark."
+    }
     add 1 to suspicion
   }
 }
@@ -689,6 +695,7 @@ scene gate {
 
   on talk chance 60 {
     success {
+      use GiveReward(HealingPotion, 1)
       narrate "The guards listen."
     }
     fail {
