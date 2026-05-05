@@ -11,7 +11,7 @@ import java.util.List;
 public record SceneDefinition(
         String name,
         String description,
-        List<PresentEntry> presentActors,
+        List<ActorReference> presentActors,
         List<GameAction> onEnterActions,
         List<GameAction> onExitActions,
         List<IntentDefinition> intents,
