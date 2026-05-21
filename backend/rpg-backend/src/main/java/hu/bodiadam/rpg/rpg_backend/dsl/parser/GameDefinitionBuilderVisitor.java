@@ -272,7 +272,7 @@ final class GameDefinitionBuilderVisitor extends RpgDslBaseVisitor<Object> {
         for (var element : ctx.sceneBody().sceneElement()) {
             if (element.presentDefinition() != null) {
                 for (TerminalNode id : element.presentDefinition().ID()) {
-                    presentActors.add(mapPresentEntry(id.getText(), actors, start));
+                    presentActors.add(mapPresentEntry(id.getText()));
                 }
             } else if (element.onEnter() != null) {
                 onEnterActions = mapActions(element.onEnter().statement());
@@ -302,23 +302,8 @@ final class GameDefinitionBuilderVisitor extends RpgDslBaseVisitor<Object> {
                 endScene);
     }
 
-    private ActorReference mapPresentEntry(
-            String name,
-            DefinitionBlock<ActorDefinition, ActorInstantiation> actors,
-            StartBlock start) {
-        boolean isActorType = actors.definitions().stream().anyMatch(actor -> actor.name().equals(name));
-        boolean isActorInstance = actors.instantiations().stream().anyMatch(actor -> actor.instanceName().equals(name))
-                || start.actorInstantiations().stream().anyMatch(actor -> actor.instanceName().equals(name));
-        if (isActorType && !isActorInstance) {
-            return new ActorReference(name);
-        }
-        if (isActorInstance && !isActorType) {
-            return new ActorReference(name);
-        }
-        if (isActorType) {
-            return new ActorReference(name);
-        }
-        throw new DslParseException("Unknown present entry: " + name);
+    private ActorReference mapPresentEntry(String name) {
+        return new ActorReference(name);
     }
 
     private IntentHandler mapIntentHandler(RpgDslParser.OnIntentContext ctx) {
@@ -528,6 +513,7 @@ final class GameDefinitionBuilderVisitor extends RpgDslBaseVisitor<Object> {
 
     private DslParseException unsupported(ParserRuleContext ctx, String message) {
         // Váratlan szerkezetnél sorinformációval együtt dobunk hibát.
-        return new DslParseException(message + " at line " + ctx.getStart().getLine());
+        return new DslParseException(
+                message + " at line " + ctx.getStart().getLine() + ":" + (ctx.getStart().getCharPositionInLine() + 1));
     }
 }

@@ -19,7 +19,7 @@
 
       <ul class="diag-list" *ngIf="diagnostics.length > 0">
         <li *ngFor="let d of diagnostics" [class]="severityClass(d)">
-          ({{d.severity}}) line {{d.line}} col {{d.col}} — {{d.message}}
+          ({{d.severity}}) line {{d.line}} col {{d.character}} — {{d.message}}
         </li>
       </ul>
     </div>
@@ -37,8 +37,8 @@
     </div>
 
     <div class="input">
-      <input [(ngModel)]="chatInput" (keydown.enter)="send()" placeholder="Írj valamit..." />
-      <button class="btn primary" (click)="send()">Send</button>
+      <input [(ngModel)]="chatInput" (keydown.enter)="send()" placeholder="Írj valamit..." [disabled]="!started || sending" />
+      <button class="btn primary" (click)="send()" [disabled]="!started || sending">Send</button>
     </div>
   </section>
 </div>

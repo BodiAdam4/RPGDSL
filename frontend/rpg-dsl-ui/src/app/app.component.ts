@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from './api.service';
-import { DiagnosticDto, ChatResponseDto } from './api.types';
+import { DiagnosticDto, ChatHistoryMessageDto, ChatResponseDto } from './api.types';
 
 type ChatMsg = { from: 'user' | 'system'; text: string };
 
@@ -44,10 +44,8 @@ world Demo{
   diagnostics: DiagnosticDto[] = [];
   validating = false;
   starting = false;
-
-  sessionId: string | null = null;
-  sceneId: string | null = null;
-  availableIntents: string[] = [];
+  sending = false;
+  started = false;
 
   chatInput = '';
   chat: ChatMsg[] = [];
@@ -62,7 +60,9 @@ world Demo{
         this.validating = false;
       },
       error: (err) => {
-        this.diagnostics = [{ line: 0, col: 0, severity: 'ERROR', message: 'Validate failed: ' + (err?.message ?? err) }];
+        this.diagnostics = this.extractDiagnostics(err) ?? [
+          { line: 0, character: 0, severity: 'ERROR', message: 'Validate failed: ' + this.extractErrorMessage(err) }
+        ];
         this.validating = false;
       }
     });
@@ -72,14 +72,19 @@ world Demo{
     this.starting = true;
     this.api.start({ source: this.source }).subscribe({
       next: (res) => {
-        this.sessionId = res.sessionId;
-        this.sceneId = res.sceneId;
-        this.availableIntents = res.availableIntents ?? [];
-        this.chat = [{ from: 'system', text: res.text }];
+        this.diagnostics = res.diagnostics ?? [];
+        this.started = !!res.text;
+        this.chat = res.text ? [{ from: 'system', text: res.text }] : [];
         this.starting = false;
       },
       error: (err) => {
-        this.chat.push({ from: 'system', text: 'Start failed: ' + (err?.message ?? err) });
+        const backendDiagnostics = this.extractDiagnostics(err);
+        if (backendDiagnostics) {
+          this.diagnostics = backendDiagnostics;
+        } else {
+          this.chat.push({ from: 'system', text: 'Start failed: ' + this.extractErrorMessage(err) });
+        }
+        this.started = false;
         this.starting = false;
       }
     });
@@ -89,32 +94,42 @@ world Demo{
     const msg = this.chatInput.trim();
     if (!msg) return;
 
-    if (!this.sessionId) {
-      this.chat.push({ from: 'system', text: 'Nincs aktív session. Nyomd meg a Start-ot.' });
+    if (!this.started) {
+      this.chat.push({ from: 'system', text: 'Nincs elindított játék. Nyomd meg a Start-ot.' });
       this.chatInput = '';
       return;
     }
 
     this.chat.push({ from: 'user', text: msg });
     this.chatInput = '';
+    this.sending = true;
 
-    this.api.turn(this.sessionId, { message: msg }).subscribe({
+    this.api.turn({
+      source: this.source,
+      history: this.chat.map((item): ChatHistoryMessageDto => ({ from: item.from, text: item.text }))
+    }).subscribe({
       next: (res: ChatResponseDto) => {
-        // opcionális: intent debug
-        if (res.intent) {
-          this.chat.push({ from: 'system', text: `(intent: ${res.intent.name}, conf: ${res.intent.confidence.toFixed(2)})` });
-        }
         this.chat.push({ from: 'system', text: res.text });
-        this.sceneId = res.sceneId;
-        this.availableIntents = res.availableIntents ?? [];
+        this.sending = false;
       },
       error: (err) => {
-        this.chat.push({ from: 'system', text: 'Turn failed: ' + (err?.message ?? err) });
+        this.chat.push({ from: 'system', text: 'Turn failed: ' + this.extractErrorMessage(err) });
+        this.sending = false;
       }
     });
   }
 
   severityClass(d: DiagnosticDto): string {
     return d.severity === 'ERROR' ? 'err' : d.severity === 'WARN' ? 'warn' : 'info';
+  }
+
+  private extractDiagnostics(err: unknown): DiagnosticDto[] | null {
+    const diagnostics = (err as { error?: { diagnostics?: DiagnosticDto[] } })?.error?.diagnostics;
+    return Array.isArray(diagnostics) ? diagnostics : null;
+  }
+
+  private extractErrorMessage(err: unknown): string {
+    const httpError = err as { error?: { message?: string }; message?: string };
+    return httpError?.error?.message ?? httpError?.message ?? String(err);
   }
 }

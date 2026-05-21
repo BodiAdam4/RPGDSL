@@ -22,7 +22,7 @@ export class ApiService {
     return this.http.post<StartResponseDto>(`${this.base}/start`, req);
   }
 
-  turn(sessionId: string, req: ChatRequestDto): Observable<ChatResponseDto> {
-    return this.http.post<ChatResponseDto>(`${this.base}/turn/${encodeURIComponent(sessionId)}`, req);
+  turn(req: ChatRequestDto): Observable<ChatResponseDto> {
+    return this.http.post<ChatResponseDto>(`${this.base}/turn`, req);
   }
 }

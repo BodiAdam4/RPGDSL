@@ -399,10 +399,10 @@ rules {
     success {
       consume 1 Ration
       add 1 to trust
-      beggar1 says "Kindness is rare here. I will remember."
+      narrate "The beggar accepts the ration. Kindness is rare here. He will remember."
     }
     fail {
-      beggar1 says "Mercy cannot be promised on an empty hand."
+      narrate "Mercy cannot be promised on an empty hand."
     }
   }
 
@@ -1755,6 +1755,10 @@ world {
     scene ending_watch {
       description: "The evidence reaches the inspector, arrests begin, and Ashenfall lurches toward painful reform."
 
+      present {
+        inspector
+      }
+
       on enter {
         narrate "The city does not become clean, but it becomes less hidden."
         inspector says "Justice came late. Still, it came."
@@ -1766,6 +1770,10 @@ world {
     scene ending_smuggler {
       description: "With the right secrets in the right hands, the underworld becomes the true government of Ashenfall."
 
+      present {
+        smuggler1
+      }
+
       on enter {
         narrate "Order survives only as a surface performance."
         smuggler1 says "Cities are always ruled by what they refuse to admit."
@@ -1776,6 +1784,10 @@ world {
 
     scene ending_shrine {
       description: "The relics are sealed, the rites are restored, and the city is spared at the cost of silence and sacrifice."
+
+      present {
+        priest1
+      }
 
       on enter {
         narrate "The shrine keeps its vigil, and the city forgets just enough to keep breathing."

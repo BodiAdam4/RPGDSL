@@ -2,8 +2,9 @@ export type Severity = 'ERROR' | 'WARN' | 'INFO';
 
 export interface DiagnosticDto {
   line: number;
-  col: number;
+  character: number;
   severity: Severity;
+  code?: string | null;
   message: string;
 }
 
@@ -18,24 +19,21 @@ export interface StartRequestDto {
   source: string;
 }
 export interface StartResponseDto {
-  sessionId: string;
-  sceneId: string;
+  text?: string | null;
+  diagnostics: DiagnosticDto[];
+}
+
+export type ChatFrom = 'user' | 'system';
+
+export interface ChatHistoryMessageDto {
+  from: ChatFrom;
   text: string;
-  availableIntents: string[];
 }
 
 export interface ChatRequestDto {
-  message: string;
+  source: string;
+  history: ChatHistoryMessageDto[];
 }
 export interface ChatResponseDto {
-  intent?: { name: string; confidence: number };
   text: string;
-  sceneId: string;
-  availableIntents: string[];
-  stateDelta?: {
-    vars?: Record<string, number>;
-    flags?: Record<string, boolean>;
-    inventory?: Record<string, number>;
-    skills?: Record<string, number>;
-  };
 }

@@ -24,21 +24,32 @@ public class DslParserFacade {
     private final GameDefinitionBuilderVisitor builderVisitor = new GameDefinitionBuilderVisitor();
 
     public GameDefinition parse(String source) {
-
-        return parse(CharStreams.fromString(source));
+        return build(parseTree(source));
     }
 
     //Filebol parseolas
     public GameDefinition parse(Path path) {
         try {
-            return parse(CharStreams.fromPath(path));
+            return build(parseTree(path));
         } catch (IOException exception) {
             throw new UncheckedIOException("Failed to read DSL file: " + path, exception);
         }
     }
 
+    public GameDefinition build(RpgDslParser.ProgramContext programContext) {
+        return builderVisitor.build(programContext);
+    }
+
+    public RpgDslParser.ProgramContext parseTree(String source) {
+        return parseProgram(CharStreams.fromString(source));
+    }
+
+    public RpgDslParser.ProgramContext parseTree(Path path) throws IOException {
+        return parseProgram(CharStreams.fromPath(path));
+    }
+
     //Charstream parseolas
-    private GameDefinition parse(CharStream input) {
+    private RpgDslParser.ProgramContext parseProgram(CharStream input) {
         // Lexer
         var lexer = new RpgDslLexer(input);
         // Parser
@@ -51,7 +62,7 @@ public class DslParserFacade {
         lexer.addErrorListener(errorListener);
         parser.addErrorListener(errorListener);
 
-        return builderVisitor.build(parser.program());
+        return parser.program();
     }
 
     /**
@@ -66,7 +77,9 @@ public class DslParserFacade {
                 int charPositionInLine,
                 String msg,
                 RecognitionException exception) {
-            throw new DslParseException("Syntax error at line " + line + ":" + charPositionInLine + " - " + msg, exception);
+            throw new DslParseException(
+                    "Syntax error at line " + line + ":" + (charPositionInLine + 1) + " - " + msg,
+                    exception);
         }
     }
 }
