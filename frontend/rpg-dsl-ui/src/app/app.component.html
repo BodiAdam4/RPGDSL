@@ -4,7 +4,9 @@
     <div class="panel">
       <h2>DSL Editor</h2>
 
-      <textarea [(ngModel)]="source" spellcheck="false"></textarea>
+      <div class="editorShell">
+        <div #editorHost class="editorHost" aria-label="DSL editor"></div>
+      </div>
 
       <div class="buttons">
         <button class="btn primary" (click)="validate()" [disabled]="validating">Validate</button>

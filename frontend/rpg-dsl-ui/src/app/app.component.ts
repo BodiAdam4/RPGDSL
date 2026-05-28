@@ -1,6 +1,18 @@
-import { Component } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { EditorState } from '@codemirror/state';
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import {
+  drawSelection,
+  dropCursor,
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  keymap,
+  lineNumbers,
+  rectangularSelection
+} from '@codemirror/view';
 import { ApiService } from './api.service';
 import { DiagnosticDto, ChatHistoryMessageDto, ChatResponseDto } from './api.types';
 
@@ -13,30 +25,109 @@ type ChatMsg = { from: 'user' | 'system'; text: string };
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
-export class AppComponent {
-  source = `global{
-  skills{
-    skill Persuasion{ maxValue: 10; description: "Meggyőzés"; };
-  }
-  items{
-    item HealingPotion{ maxStack: 99; description: "Gyógyital"; };
-  }
-  vars{ var hp = 10; }
-  flags{ flag witnessAngry = false; }
+export class AppComponent implements AfterViewInit, OnDestroy {
+  @ViewChild('editorHost', { static: true }) private editorHost?: ElementRef<HTMLDivElement>;
+
+  source = `initPrompt {
+  "A small dark fantasy scene. The tone is tense and quiet. The narration should feel atmospheric and uncertain."
 }
 
-world Demo{
-  scenes{
-    scene intro{
-      description: "Egy tanú áll előtted.";
-      intents{
-        intent ask{ description: "Kérdezz"; };
-        intent accuse{ description: "Vádolj"; };
+items {
+  item RustyKey {
+    description: "An old iron key covered in rust"
+    rarity: "Common"
+  }
+
+  stackable item HealingPotion {
+    description: "A weak healing tonic"
+    healAmount: 3
+    rarity: "Common"
+  }
+}
+
+actors {
+  actor GateGuard {
+    description: "A tired but alert guard"
+    faction: "Watch"
+    suspicion: 1
+  }
+}
+
+vars {
+  hp: 5
+  suspicion: 0
+  gold: 2
+}
+
+start {
+  guard1 as GateGuard
+  give 1 HealingPotion
+}
+
+rules {
+  rule HealIfNeeded chance 100 {
+    requires {
+      has HealingPotion and hp is less than 6
+    }
+    success {
+      consume 1 HealingPotion
+      add HealingPotion.healAmount to hp
+      narrate "You quietly drink the potion and feel a little stronger."
+    }
+    fail {
+      narrate "You cannot heal right now."
+    }
+  }
+}
+
+world {
+  scenes {
+    scene gate {
+      description: "A wooden gate blocks the road into the village."
+
+      present {
+        guard1
       }
-      on ask chance 60%{
-        success{ narrate "Beszélni kezd."; }
-        fail{ narrate "Hallgat."; }
+
+      on enter {
+        narrate "Cold wind moves through the empty road."
+        guard1 says "State your business."
       }
+
+      intents {
+        intent talk {
+          description: "Try to convince the guard to let you pass"
+        }
+
+        intent heal {
+          description: "Drink your potion before speaking"
+        }
+      }
+
+      on heal chance 100 {
+        success {
+          use HealIfNeeded
+        }
+        fail {
+          narrate "Nothing happens."
+        }
+      }
+
+      on talk chance 60 {
+        success {
+          guard1 says "Very well. You may enter."
+          go to village
+        }
+        fail {
+          guard1 says "No. Not tonight."
+          add 1 to suspicion
+        }
+      }
+    }
+
+    scene village {
+      description: "The village is silent, lit by weak lanterns."
+      end scene
     }
   }
 }`;
@@ -49,8 +140,70 @@ world Demo{
 
   chatInput = '';
   chat: ChatMsg[] = [];
+  private editorView?: EditorView;
 
   constructor(private api: ApiService) {}
+
+  ngAfterViewInit(): void {
+    if (!this.editorHost?.nativeElement) {
+      return;
+    }
+
+    this.editorView = new EditorView({
+      parent: this.editorHost.nativeElement,
+      state: EditorState.create({
+        doc: this.source,
+        extensions: [
+          lineNumbers(),
+          highlightActiveLineGutter(),
+          history(),
+          drawSelection(),
+          dropCursor(),
+          EditorState.allowMultipleSelections.of(true),
+          rectangularSelection(),
+          highlightActiveLine(),
+          keymap.of([
+            indentWithTab,
+            ...defaultKeymap,
+            ...historyKeymap
+          ]),
+          EditorView.lineWrapping,
+          EditorView.editable.of(true),
+          EditorView.theme({
+            '&': {
+              height: '100%',
+              outline: 'none'
+            },
+            '.cm-gutters': {
+              backgroundColor: '#f9fafc',
+              border: 'none'
+            },
+            '.cm-content': {
+              padding: '12px 0'
+            },
+            '.cm-line': {
+              padding: '0 12px'
+            },
+            '.cm-scroller': {
+              fontFamily: 'inherit'
+            },
+            '.cm-gutterElement': {
+              padding: '0 10px 0 12px'
+            }
+          }),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              this.source = update.state.doc.toString();
+            }
+          })
+        ]
+      })
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.editorView?.destroy();
+  }
 
   validate(): void {
     this.validating = true;

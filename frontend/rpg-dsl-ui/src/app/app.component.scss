@@ -74,19 +74,18 @@ h3 {
 }
 
 /* Editor */
-textarea {
+.editorShell {
   flex: 1 1 auto;
+  display: flex;
   width: 100%;
   min-height: 0;
   box-sizing: border-box;
-  overflow: auto;
+  overflow: hidden;
 
   resize: none;
   background: #f9fafc;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 12px;
-
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 13px;
   line-height: 1.4;
@@ -94,10 +93,49 @@ textarea {
   transition: border 0.2s, box-shadow 0.2s;
 }
 
-textarea:focus {
+.editorShell:focus-within {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(79,110,247,0.15);
+}
+
+.editorHost {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+:host ::ng-deep .cm-editor {
+  height: 100%;
+  background: #f9fafc;
+  outline: none !important;
+}
+
+:host ::ng-deep .cm-scroller {
+  height: 100%;
+  overflow: auto;
+  font-family: inherit;
+}
+
+:host ::ng-deep .cm-focused {
+  outline: none !important;
+}
+
+:host ::ng-deep .cm-gutters {
+  height: 100%;
+}
+
+:host ::ng-deep .cm-content {
+  padding-bottom: 12px;
+}
+
+:host ::ng-deep .cm-lineNumbers .cm-gutterElement {
+  color: var(--muted);
+}
+
+:host ::ng-deep .cm-activeLine,
+:host ::ng-deep .cm-activeLineGutter {
+  background: rgba(79,110,247,0.08);
 }
 
 

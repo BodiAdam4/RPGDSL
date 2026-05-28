@@ -14,16 +14,12 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'rpg-dsl-ui' title`, () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app.title).toEqual('rpg-dsl-ui');
-  });
-
-  it('should render title', () => {
+  it('should render the editor and chat headings', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, rpg-dsl-ui');
+    const headings = Array.from(compiled.querySelectorAll('h2')).map((item) => item.textContent?.trim());
+    expect(headings).toContain('DSL Editor');
+    expect(headings).toContain('Chat');
   });
 });
