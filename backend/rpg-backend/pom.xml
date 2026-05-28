@@ -136,9 +136,9 @@
                                 <useJakartaEe>true</useJakartaEe>
                                 <dateLibrary>java8-datetime</dateLibrary>
                                 <openApiNullable>false</openApiNullable>
-                                <configPackage>org.rpg-backend.config</configPackage>
-                                <apiPackage>org.rpg-backend.api</apiPackage>
-                                <modelPackage>org.rpg-backend.model</modelPackage>
+                                <configPackage>hu.bodiadam.rpg.generated.config</configPackage>
+                                <apiPackage>hu.bodiadam.rpg.generated.api</apiPackage>
+                                <modelPackage>hu.bodiadam.rpg.generated.model</modelPackage>
                                 <interfaceOnly>true</interfaceOnly>
                             </configOptions>
                         </configuration>
