@@ -30,7 +30,7 @@ public class GeminiChatClient {
     public String generate(String prompt) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException(
-                    "Gemini API key is missing. Set gemini.api.key in application.properties before starting a game.");
+                    "Gemini API key is missing. Set GEMINI_API_KEY in the environment before starting a game.");
         }
 
         try {
