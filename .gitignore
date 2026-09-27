@@ -79,3 +79,7 @@ build/
 
 
 backend/ai-integration/local.properties
+
+# Local generated and timestamped IDE directories
+/backend/rpg-backend/gen/
+/backend/rpg-backend/.idea */
