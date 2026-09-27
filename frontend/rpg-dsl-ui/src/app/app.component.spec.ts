@@ -1,10 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 
@@ -18,7 +21,9 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    const headings = Array.from(compiled.querySelectorAll('h2')).map((item) => item.textContent?.trim());
+    const headings = Array.from(compiled.querySelectorAll('h2')).map((item) =>
+      item.textContent?.trim(),
+    );
     expect(headings).toContain('DSL Editor');
     expect(headings).toContain('Chat');
   });
