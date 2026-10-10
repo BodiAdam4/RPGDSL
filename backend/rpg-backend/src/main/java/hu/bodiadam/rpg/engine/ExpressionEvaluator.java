@@ -30,19 +30,45 @@ public class ExpressionEvaluator {
         if (expression instanceof LiteralExpression(Object value)) {
             return requireRuntimeValue(value, "literal");
         }
-        if (expression instanceof ReferenceExpression(String root, java.util.Optional<String> property)) {
+        if (expression instanceof ReferenceExpression(
+                String root, java.util.Optional<String> property)) {
+
             if (property.isPresent()) {
-                //TODO: implement property access
+                return resolveProperty(root, property.get(), definition, state, ruleParameters);
             }
-            if (ruleParameters.containsKey(root)) {
-                return requireRuntimeValue(ruleParameters.get(root), "rule parameter '" + root + "'");
-            }
-            if (state.variables().containsKey(root)) {
-                return requireRuntimeValue(state.variables().get(root), "global variable '" + root + "'");
-            }
-            throw new IllegalArgumentException("Unknown reference: " + root);
+
+            return resolveSimpleReference(root, state, ruleParameters);
         }
         throw new IllegalArgumentException("Unsupported expression type: " + expression.getClass().getSimpleName());
+    }
+
+    private Object resolveSimpleReference(
+            String root,
+            GameState state,
+            Map<String, Object> ruleParameters) {
+
+        if (ruleParameters.containsKey(root)) {
+            return requireRuntimeValue(
+                    ruleParameters.get(root), "rule parameter '" + root + "'");
+        }
+
+        if (state.variables().containsKey(root)) {
+            return requireRuntimeValue(
+                    state.variables().get(root), "global variable '" + root + "'");
+        }
+
+        throw new IllegalArgumentException("Unknown reference: " + root);
+    }
+
+    private Object resolveProperty(
+            String root,
+            String property,
+            GameDefinition definition,
+            GameState state,
+            Map<String, Object> ruleParameters) {
+
+        //TODO: Implement property resolution logic
+        return new Object();
     }
 
     private Object requireRuntimeValue(Object value, String source) {
