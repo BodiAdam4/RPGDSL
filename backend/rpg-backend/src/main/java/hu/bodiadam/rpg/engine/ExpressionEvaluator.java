@@ -1,6 +1,8 @@
 package hu.bodiadam.rpg.engine;
 
 import hu.bodiadam.rpg.dsl.model.GameDefinition;
+import hu.bodiadam.rpg.dsl.model.definition.ActorDefinition;
+import hu.bodiadam.rpg.dsl.model.definition.ItemDefinition;
 import hu.bodiadam.rpg.dsl.model.expression.Expression;
 import hu.bodiadam.rpg.dsl.model.expression.LiteralExpression;
 import hu.bodiadam.rpg.dsl.model.expression.ReferenceExpression;
@@ -77,7 +79,57 @@ public class ExpressionEvaluator {
         if (matches.size() > 1) {
             throw new IllegalArgumentException("Ambiguous property root: " + root);
         }
+
+        var match = matches.get(0);
+        if (match.category() == RootCategory.ITEM_INSTANCE) {
+            var item = resolveItemDefinition(match.typeName(), definition);
+        }
+        if (match.category() == RootCategory.ACTOR_INSTANCE) {
+            var actor = resolveActorDefinition(match.typeName(), definition);
+        }
         return new Object();
+    }
+
+    private ItemDefinition resolveItemDefinition(
+            String typeName,
+            GameDefinition definition) {
+
+        var matches = definition.items().definitions().stream()
+                .filter(item -> typeName.equals(item.name()))
+                .toList();
+
+        if (matches.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Unknown item definition: " + typeName);
+        }
+
+        if (matches.size() > 1) {
+            throw new IllegalArgumentException(
+                    "Ambiguous item definition: " + typeName);
+        }
+
+        return matches.get(0);
+    }
+
+    private ActorDefinition resolveActorDefinition(
+            String typeName,
+            GameDefinition definition) {
+
+        var matches = definition.actors().definitions().stream()
+                .filter(actor -> typeName.equals(actor.name()))
+                .toList();
+
+        if (matches.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Unknown actor definition: " + typeName);
+        }
+
+        if (matches.size() > 1) {
+            throw new IllegalArgumentException(
+                    "Ambiguous actor definition: " + typeName);
+        }
+
+        return matches.get(0);
     }
 
     private List<RootMatch> collectRootMatches(
