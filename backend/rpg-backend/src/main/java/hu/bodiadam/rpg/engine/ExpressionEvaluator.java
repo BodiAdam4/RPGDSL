@@ -7,9 +7,13 @@ import hu.bodiadam.rpg.dsl.model.expression.Expression;
 import hu.bodiadam.rpg.dsl.model.expression.LiteralExpression;
 import hu.bodiadam.rpg.dsl.model.expression.ReferenceExpression;
 import hu.bodiadam.rpg.runtime.GameState;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+
+@Component
 public class ExpressionEvaluator {
     public Object evaluate(
             Expression expression,
