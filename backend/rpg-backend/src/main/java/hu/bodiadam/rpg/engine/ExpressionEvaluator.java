@@ -6,6 +6,8 @@ import hu.bodiadam.rpg.dsl.model.expression.LiteralExpression;
 import hu.bodiadam.rpg.dsl.model.expression.ReferenceExpression;
 import hu.bodiadam.rpg.runtime.GameState;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class ExpressionEvaluator {
@@ -68,7 +70,59 @@ public class ExpressionEvaluator {
             Map<String, Object> ruleParameters) {
 
         //TODO: Implement property resolution logic
+        var matches = collectRootMatches(root, definition);
         return new Object();
+    }
+
+    private List<RootMatch> collectRootMatches(
+            String root,
+            GameDefinition definition) {
+
+        var matches = new ArrayList<RootMatch>();
+
+        for (var item : definition.items().definitions()) {
+            if (root.equals(item.name())) {
+                matches.add(new RootMatch(
+                        RootCategory.ITEM_DEFINITION, item.name()));
+            }
+        }
+
+        for (var actor : definition.actors().definitions()) {
+            if (root.equals(actor.name())) {
+                matches.add(new RootMatch(
+                        RootCategory.ACTOR_DEFINITION, actor.name()));
+            }
+        }
+
+        for (var instance : definition.items().instantiations()) {
+            if (root.equals(instance.instanceName())) {
+                matches.add(new RootMatch(
+                        RootCategory.ITEM_INSTANCE, instance.typeName()));
+            }
+        }
+
+        for (var instance : definition.start().itemInstantiations()) {
+            if (root.equals(instance.instanceName())) {
+                matches.add(new RootMatch(
+                        RootCategory.ITEM_INSTANCE, instance.typeName()));
+            }
+        }
+
+        for (var instance : definition.actors().instantiations()) {
+            if (root.equals(instance.instanceName())) {
+                matches.add(new RootMatch(
+                        RootCategory.ACTOR_INSTANCE, instance.typeName()));
+            }
+        }
+
+        for (var instance : definition.start().actorInstantiations()) {
+            if (root.equals(instance.instanceName())) {
+                matches.add(new RootMatch(
+                        RootCategory.ACTOR_INSTANCE, instance.typeName()));
+            }
+        }
+
+        return matches;
     }
 
     private Object requireRuntimeValue(Object value, String source) {
@@ -78,4 +132,13 @@ public class ExpressionEvaluator {
         }
         return value;
     }
+
+    private enum RootCategory {
+        ITEM_DEFINITION,
+        ACTOR_DEFINITION,
+        ITEM_INSTANCE,
+        ACTOR_INSTANCE
+    }
+
+    private record RootMatch(RootCategory category, String typeName) {}
 }
