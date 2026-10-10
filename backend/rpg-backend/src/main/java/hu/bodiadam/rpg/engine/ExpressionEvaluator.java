@@ -71,6 +71,12 @@ public class ExpressionEvaluator {
 
         //TODO: Implement property resolution logic
         var matches = collectRootMatches(root, definition);
+        if (matches.isEmpty()) {
+            throw new IllegalArgumentException("Unknown property root: " + root);
+        }
+        if (matches.size() > 1) {
+            throw new IllegalArgumentException("Ambiguous property root: " + root);
+        }
         return new Object();
     }
 
