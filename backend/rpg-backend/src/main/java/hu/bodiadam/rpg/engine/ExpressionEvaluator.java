@@ -81,8 +81,18 @@ public class ExpressionEvaluator {
         }
 
         var match = matches.get(0);
-        if (match.category() == RootCategory.ITEM_INSTANCE) {
+        if (match.category() == RootCategory.ITEM_INSTANCE || match.category() == RootCategory.ITEM_DEFINITION) {
             var item = resolveItemDefinition(match.typeName(), definition);
+            if (property.equals("count")) {
+                if (!item.stackable()) {
+                    throw new IllegalArgumentException(
+                            "Count requires a stackable item: " + root + ".count");
+                }
+
+                return requireRuntimeValue(
+                        state.inventory().getOrDefault(root, 0),
+                        root + ".count");
+            }
         }
         if (match.category() == RootCategory.ACTOR_INSTANCE) {
             var actor = resolveActorDefinition(match.typeName(), definition);
