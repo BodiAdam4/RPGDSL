@@ -9,6 +9,7 @@ import hu.bodiadam.rpg.dsl.model.expression.ReferenceExpression;
 import hu.bodiadam.rpg.runtime.GameState;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -93,6 +94,7 @@ public class ExpressionEvaluator {
                         state.inventory().getOrDefault(root, 0),
                         root + ".count");
             }
+            var propertyExpression = findItemProperty(item, root, property, definition);
         }
         if (match.category() == RootCategory.ACTOR_INSTANCE || match.category() == RootCategory.ACTOR_DEFINITION) {
             var actor = resolveActorDefinition(match.typeName(), definition);
@@ -101,6 +103,7 @@ public class ExpressionEvaluator {
                 throw new IllegalArgumentException(
                         "Count is not supported for actors: " + root + ".count");
             }
+            var propertyExpression = findActorProperty(actor, root, property, definition);
         }
         return new Object();
     }
@@ -145,6 +148,64 @@ public class ExpressionEvaluator {
         }
 
         return matches.get(0);
+    }
+
+    private Expression findItemProperty(
+            ItemDefinition item,
+            String root,
+            String property,
+            GameDefinition definition) {
+
+        var visited = new HashSet<String>();
+
+        while (true) {
+            if (!visited.add(item.name())) {
+                throw new IllegalStateException(
+                        "Cyclic item inheritance: " + root + "." + property);
+            }
+
+            for (var candidate : item.properties()) {
+                if (property.equals(candidate.name())) {
+                    return candidate.value();
+                }
+            }
+
+            if (item.parentName().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Unknown property: " + root + "." + property);
+            }
+
+            item = resolveItemDefinition(item.parentName().get(), definition);
+        }
+    }
+
+    private Expression findActorProperty(
+            ActorDefinition actor,
+            String root,
+            String property,
+            GameDefinition definition) {
+
+        var visited = new HashSet<String>();
+
+        while (true) {
+            if (!visited.add(actor.name())) {
+                throw new IllegalStateException(
+                        "Cyclic actor inheritance: " + root + "." + property);
+            }
+
+            for (var candidate : actor.properties()) {
+                if (property.equals(candidate.name())) {
+                    return candidate.value();
+                }
+            }
+
+            if (actor.parentName().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Unknown property: " + root + "." + property);
+            }
+
+            actor = resolveActorDefinition(actor.parentName().get(), definition);
+        }
     }
 
     private List<RootMatch> collectRootMatches(
