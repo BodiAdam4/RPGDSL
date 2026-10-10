@@ -8,10 +8,7 @@ import hu.bodiadam.rpg.dsl.model.expression.LiteralExpression;
 import hu.bodiadam.rpg.dsl.model.expression.ReferenceExpression;
 import hu.bodiadam.rpg.runtime.GameState;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ExpressionEvaluator {
     public Object evaluate(
@@ -32,19 +29,33 @@ public class ExpressionEvaluator {
             throw new IllegalArgumentException("ruleParameters must not be null");
         }
 
+        return evaluate(expression, definition, state, ruleParameters, new HashSet<>());
+    }
+
+    private Object evaluate(
+            Expression expression,
+            GameDefinition definition,
+            GameState state,
+            Map<String, Object> ruleParameters,
+            Set<PropertyKey> activeProperties) {
+
         if (expression instanceof LiteralExpression(Object value)) {
             return requireRuntimeValue(value, "literal");
         }
+
         if (expression instanceof ReferenceExpression(
                 String root, java.util.Optional<String> property)) {
 
             if (property.isPresent()) {
-                return resolveProperty(root, property.get(), definition, state, ruleParameters);
+                return resolveProperty(root, property.get(), definition, state, ruleParameters, activeProperties);
             }
 
             return resolveSimpleReference(root, state, ruleParameters);
         }
-        throw new IllegalArgumentException("Unsupported expression type: " + expression.getClass().getSimpleName());
+
+        throw new IllegalArgumentException(
+                "Unsupported expression type: "
+                        + expression.getClass().getSimpleName());
     }
 
     private Object resolveSimpleReference(
@@ -70,9 +81,30 @@ public class ExpressionEvaluator {
             String property,
             GameDefinition definition,
             GameState state,
-            Map<String, Object> ruleParameters) {
+            Map<String, Object> ruleParameters,
+            Set<PropertyKey> activeProperties) {
 
-        //TODO: Implement property resolution logic
+        var key = new PropertyKey(root, property);
+
+        if (!activeProperties.add(key)) {
+            throw new IllegalStateException("Cyclic property resolution: " + root + "." + property);
+        }
+
+        try {
+            return resolvePropertyValue(root, property, definition, state, ruleParameters, activeProperties);
+        } finally {
+            activeProperties.remove(key);
+        }
+    }
+
+    private Object resolvePropertyValue(
+            String root,
+            String property,
+            GameDefinition definition,
+            GameState state,
+            Map<String, Object> ruleParameters,
+            Set<PropertyKey> activeProperties) {
+
         var matches = collectRootMatches(root, definition);
         if (matches.isEmpty()) {
             throw new IllegalArgumentException("Unknown property root: " + root);
@@ -95,6 +127,7 @@ public class ExpressionEvaluator {
                         root + ".count");
             }
             var propertyExpression = findItemProperty(item, root, property, definition);
+            return evaluate(propertyExpression, definition, state, ruleParameters, activeProperties);
         }
         if (match.category() == RootCategory.ACTOR_INSTANCE || match.category() == RootCategory.ACTOR_DEFINITION) {
             var actor = resolveActorDefinition(match.typeName(), definition);
@@ -104,8 +137,9 @@ public class ExpressionEvaluator {
                         "Count is not supported for actors: " + root + ".count");
             }
             var propertyExpression = findActorProperty(actor, root, property, definition);
+            return evaluate(propertyExpression, definition, state, ruleParameters,activeProperties);
         }
-        return new Object();
+        throw new IllegalStateException("Unsupported root category: " + match.category());
     }
 
     private ItemDefinition resolveItemDefinition(
@@ -275,4 +309,5 @@ public class ExpressionEvaluator {
     }
 
     private record RootMatch(RootCategory category, String typeName) {}
+    private record PropertyKey(String root, String property) {}
 }
