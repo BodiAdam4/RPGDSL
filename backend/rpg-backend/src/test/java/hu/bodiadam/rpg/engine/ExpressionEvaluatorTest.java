@@ -283,6 +283,46 @@ class ExpressionEvaluatorTest {
                         expression, cyclicDefinition, state, Map.of()));
     }
 
+    @Test
+    void rejectsGlobalVariableAsPropertyRootDespiteMatchingItemDefinition() {
+        var conflictingDefinition = parser.parse("""
+            vars { hp: 7 }
+            items {
+                item hp {
+                    description: "Item with a conflicting name"
+                    value: 9
+                }
+            }
+            world { scenes {
+                scene entrance { description: "Entrance" }
+            } }
+            """);
+
+        var expression = reference("hp.value");
+
+        var exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> evaluator.evaluate(
+                        expression, conflictingDefinition, state, Map.of()));
+
+        assertTrue(exception.getMessage().contains("Scalar"));
+        assertTrue(exception.getMessage().contains("hp.value"));
+    }
+
+    @Test
+    void rejectsRuleParameterAsPropertyRootDespiteMatchingItemDefinition() {
+        var expression = reference("Knife.damage");
+
+        var exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> evaluator.evaluate(
+                        expression, definition, state, Map.of("Knife", 5)));
+
+        assertTrue(exception.getMessage().contains("Scalar"));
+        assertTrue(exception.getMessage().contains("Knife.damage"));
+    }
+
+
     private Object evaluate(Expression expression) {
         return evaluator.evaluate(
                 expression, definition, state, Map.of());

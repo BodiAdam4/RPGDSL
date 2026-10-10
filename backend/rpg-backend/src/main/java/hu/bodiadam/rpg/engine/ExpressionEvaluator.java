@@ -84,6 +84,10 @@ public class ExpressionEvaluator {
             Map<String, Object> ruleParameters,
             Set<PropertyKey> activeProperties) {
 
+        if (ruleParameters.containsKey(root) || state.variables().containsKey(root)) {
+            throw new IllegalArgumentException("Scalar value cannot be used as a property root: " + root + "." + property);
+        }
+
         var key = new PropertyKey(root, property);
 
         if (!activeProperties.add(key)) {
