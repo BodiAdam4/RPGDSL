@@ -2,6 +2,7 @@ package hu.bodiadam.rpg.engine;
 
 import hu.bodiadam.rpg.dsl.model.GameDefinition;
 import hu.bodiadam.rpg.dsl.model.condition.Condition;
+import hu.bodiadam.rpg.dsl.model.condition.HasCondition;
 import hu.bodiadam.rpg.runtime.GameState;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,21 @@ public class ConditionEvaluator {
         }
         if (ruleParameters == null) {
             throw new IllegalArgumentException("ruleParameters must not be null");
+        }
+
+        if (condition instanceof HasCondition(String targetName, boolean negated)) {
+
+            if (targetName == null || targetName.isBlank()) {
+                throw new IllegalArgumentException("HasCondition targetName must not be null or blank");
+            }
+
+            int count = state.inventory().getOrDefault(targetName, 0);
+            boolean present = count > 0;
+
+            if (negated) {
+                return !present;
+            }
+            return present;
         }
 
         //TODO: Implement the evaluation logic
