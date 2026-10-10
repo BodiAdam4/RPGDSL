@@ -120,9 +120,14 @@ public class GameDefinitionSemanticValidator {
                 validateDuplicateProperties(definition.itemBody().propertyDefinition(), "item", name);
                 if (definition.ID().size() > 1) {
                     String parentName = definition.ID(1).getText();
-                    if (!itemDefinitions.containsKey(parentName)) {
+                    ItemDefinition parent = itemDefinitions.get(parentName);
+
+                    if (parent == null) {
                         error(definition.ID(1), "UNKNOWN_ITEM_PARENT",
                                 "Unknown parent item '%s' for item '%s'.".formatted(parentName, name));
+                    } else if (parent.stackable() && definition.STACKABLE() == null) {
+                        error(definition.ID(0), "INVALID_STACKABLE_INHERITANCE",
+                                "Item '%s' must be stackable because parent item '%s' is stackable.".formatted(name, parentName));
                     }
                 }
                 resolveItemProperties(name, new ArrayDeque<>());
