@@ -94,8 +94,13 @@ public class ExpressionEvaluator {
                         root + ".count");
             }
         }
-        if (match.category() == RootCategory.ACTOR_INSTANCE) {
+        if (match.category() == RootCategory.ACTOR_INSTANCE || match.category() == RootCategory.ACTOR_DEFINITION) {
             var actor = resolveActorDefinition(match.typeName(), definition);
+
+            if (property.equals("count")) {
+                throw new IllegalArgumentException(
+                        "Count is not supported for actors: " + root + ".count");
+            }
         }
         return new Object();
     }
