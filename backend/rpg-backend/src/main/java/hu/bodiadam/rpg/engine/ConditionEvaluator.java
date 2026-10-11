@@ -1,6 +1,7 @@
 package hu.bodiadam.rpg.engine;
 
 import hu.bodiadam.rpg.dsl.model.GameDefinition;
+import hu.bodiadam.rpg.dsl.model.condition.ComparisonCondition;
 import hu.bodiadam.rpg.dsl.model.condition.Condition;
 import hu.bodiadam.rpg.dsl.model.condition.HasCondition;
 import hu.bodiadam.rpg.dsl.model.condition.LogicalCondition;
@@ -56,6 +57,11 @@ public class ConditionEvaluator {
         if (condition instanceof LogicalCondition logical) {
             return evaluateLogical(logical, definition, state, ruleParameters);
         }
+
+        if (condition instanceof ComparisonCondition comparison) {
+            return evaluateComparison(comparison, definition, state, ruleParameters);
+        }
+
         return false;
     }
 
@@ -78,6 +84,68 @@ public class ConditionEvaluator {
             case OR -> left || evaluate(
                     condition.right(), definition, state, ruleParameters);
         };
+    }
+
+    private boolean evaluateComparison(
+            ComparisonCondition condition,
+            GameDefinition definition,
+            GameState state,
+            Map<String, Object> ruleParameters) {
+
+        if (condition.reference() == null) {
+            throw new IllegalArgumentException("ComparisonCondition reference must not be null");
+        }
+        if (condition.operator() == null) {
+            throw new IllegalArgumentException("ComparisonCondition operator must not be null");
+        }
+        if (condition.value() == null) {
+            throw new IllegalArgumentException("ComparisonCondition value must not be null");
+        }
+
+        Object left = expressionEvaluator.evaluate(condition.reference(), definition, state, ruleParameters);
+
+        Object right = expressionEvaluator.evaluate(condition.value(), definition, state, ruleParameters);
+
+        if (left.getClass() != right.getClass()) {
+            throw new IllegalArgumentException(
+                    "Incompatible operand types for " + condition.operator()
+                            + ": " + left.getClass().getSimpleName()
+                            + " and " + right.getClass().getSimpleName());
+        }
+
+        switch (condition.operator()) {
+            case EQUAL_TO:
+                return left.equals(right);
+            case NOT_EQUAL_TO:
+                return !left.equals(right);
+            case LESS_THAN:
+            case GREATER_THAN:
+            case AT_LEAST:
+            case AT_MOST:
+                if (!(left instanceof Integer leftInteger) || !(right instanceof Integer rightInteger)) {
+                    throw new IllegalArgumentException(
+                            "Ordering comparison requires Integer operands for "
+                                    + condition.operator()
+                                    + ": " + left.getClass().getSimpleName()
+                                    + " and " + right.getClass().getSimpleName());
+                }
+
+                switch (condition.operator()) {
+                    case LESS_THAN:
+                        return leftInteger < rightInteger;
+                    case GREATER_THAN:
+                        return leftInteger > rightInteger;
+                    case AT_LEAST:
+                        return leftInteger >= rightInteger;
+                    case AT_MOST:
+                        return leftInteger <= rightInteger;
+                    default:
+                        throw new IllegalStateException("Unexpected ordering operator: " + condition.operator());
+                }
+            default:
+                throw new IllegalArgumentException(
+                        "Unsupported comparison operator: " + condition.operator());
+        }
     }
 
 }
