@@ -62,7 +62,7 @@ public class ConditionEvaluator {
             return evaluateComparison(comparison, definition, state, ruleParameters);
         }
 
-        return false;
+        throw new IllegalArgumentException("Unsupported condition type: " + condition.getClass().getSimpleName());
     }
 
     private boolean evaluateLogical(
