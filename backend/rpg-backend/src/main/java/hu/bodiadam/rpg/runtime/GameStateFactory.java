@@ -3,7 +3,7 @@ package hu.bodiadam.rpg.runtime;
 import hu.bodiadam.rpg.dsl.model.GameDefinition;
 import hu.bodiadam.rpg.dsl.model.expression.LiteralExpression;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class GameStateFactory {
@@ -18,7 +18,7 @@ public class GameStateFactory {
         }
         var firstScene = scenes.get(0);
 
-        Map<String, Object> variables = new HashMap<>();
+        Map<String, Object> variables = new LinkedHashMap<>();
         for (var variable : definition.variables()) {
             if (!(variable.value() instanceof LiteralExpression literal)) {
                 throw new IllegalArgumentException(
@@ -30,6 +30,6 @@ public class GameStateFactory {
             variables.put(variable.name(), literal.value());
         }
 
-        return new GameState(firstScene.name(), variables, Map.of(), firstScene.endScene());
+        return new GameState(firstScene.name(), variables, Map.of(), Map.of(), Map.of(), firstScene.endScene());
     }
 }

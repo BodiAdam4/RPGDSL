@@ -1,5 +1,7 @@
 package hu.bodiadam.rpg.runtime;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record GameState(String currentSceneName,
@@ -36,16 +38,56 @@ public record GameState(String currentSceneName,
             }
         }
         for (var entry : inventory.entrySet()) {
-            if (entry.getKey() == null || entry.getKey().isBlank()) {
+            String root = entry.getKey();
+
+            if (root == null || root.isBlank()) {
                 throw new IllegalArgumentException("inventory name must not be null or blank");
             }
-            if (entry.getValue() == null || entry.getValue() < 0) {
-                throw new IllegalArgumentException("inventory count must not be null or negative: " + entry.getKey());
+
+            if (entry.getValue() == null || entry.getValue() <= 0) {
+                throw new IllegalArgumentException("inventory count must be positive: " + root);
+            }
+
+            if (!itemStates.containsKey(root)) {
+                throw new IllegalArgumentException("inventory root has no item runtime state: " + root);
             }
         }
 
-        variables = Map.copyOf(variables);
-        inventory = Map.copyOf(inventory);
+        for (var entry : itemStates.entrySet()) {
+            String root = entry.getKey();
+
+            if (root == null || root.isBlank()) {
+                throw new IllegalArgumentException("item runtime root must not be null or blank");
+            }
+
+            if (entry.getValue() == null) {
+                throw new IllegalArgumentException("item runtime state must not be null: " + root);
+            }
+
+            if (actorStates.containsKey(root)) {
+                throw new IllegalArgumentException("root cannot belong to both item and actor states: " + root);
+            }
+        }
+
+        for (var entry : actorStates.entrySet()) {
+            String root = entry.getKey();
+
+            if (root == null || root.isBlank()) {
+                throw new IllegalArgumentException("actor runtime root must not be null or blank");
+            }
+
+            if (entry.getValue() == null) {
+                throw new IllegalArgumentException("actor runtime state must not be null: " + root);
+            }
+        }
+
+        variables = Collections.unmodifiableMap(new LinkedHashMap<>(variables));
+
+        inventory = Collections.unmodifiableMap(new LinkedHashMap<>(inventory));
+
+        itemStates = Collections.unmodifiableMap(new LinkedHashMap<>(itemStates));
+
+        actorStates = Collections.unmodifiableMap(new LinkedHashMap<>(actorStates));
     }
 
 }

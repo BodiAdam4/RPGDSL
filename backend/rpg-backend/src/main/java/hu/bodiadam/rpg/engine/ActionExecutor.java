@@ -10,7 +10,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
@@ -63,13 +63,15 @@ public class ActionExecutor {
                 throw error;
             }
 
-            var inventory = new HashMap<>(state.inventory());
+            var inventory = new LinkedHashMap<>(state.inventory());
             inventory.put(targetName, newCount);
 
             return new GameState(
                     state.currentSceneName(),
                     state.variables(),
                     inventory,
+                    state.itemStates(),
+                    state.actorStates(),
                     state.finished());
         }
 
@@ -99,7 +101,7 @@ public class ActionExecutor {
 
             int remainingCount = currentCount - amount;
 
-            var inventory = new HashMap<>(state.inventory());
+            var inventory = new LinkedHashMap<>(state.inventory());
 
             if (remainingCount == 0) {
                 inventory.remove(targetName);
@@ -107,7 +109,13 @@ public class ActionExecutor {
                 inventory.put(targetName, remainingCount);
             }
 
-            return new GameState(state.currentSceneName(), state.variables(), inventory, state.finished());
+            return new GameState(
+                    state.currentSceneName(),
+                    state.variables(),
+                    inventory,
+                    state.itemStates(),
+                    state.actorStates(),
+                    state.finished());
         }
         throw new IllegalArgumentException("Unsupported action type: " + action.getClass().getSimpleName());
     }
