@@ -340,22 +340,22 @@ public class GameDefinitionSemanticValidator {
             }
             if (statement.addStatement() != null) {
                 validateExpression(statement.addStatement().expression(), parameters);
-                validatePropertyReference(statement.addStatement().propertyReference(), parameters);
+                validateNumericWriteTarget(statement.addStatement().propertyReference(), parameters);
                 return;
             }
             if (statement.subtractStatement() != null) {
                 validateExpression(statement.subtractStatement().expression(), parameters);
-                validatePropertyReference(statement.subtractStatement().propertyReference(), parameters);
+                validateNumericWriteTarget(statement.subtractStatement().propertyReference(), parameters);
                 return;
             }
             if (statement.multiplyStatement() != null) {
-                validatePropertyReference(statement.multiplyStatement().propertyReference(), parameters);
                 validateExpression(statement.multiplyStatement().expression(), parameters);
+                validateNumericWriteTarget(statement.multiplyStatement().propertyReference(), parameters);
                 return;
             }
             if (statement.divideStatement() != null) {
-                validatePropertyReference(statement.divideStatement().propertyReference(), parameters);
                 validateExpression(statement.divideStatement().expression(), parameters);
+                validateNumericWriteTarget(statement.divideStatement().propertyReference(), parameters);
                 return;
             }
             if (statement.randomStatement() != null) {
@@ -512,6 +512,21 @@ public class GameDefinitionSemanticValidator {
                 error(chanceNode, "INVALID_CHANCE",
                         "Chance for %s must be between 0 and 100, but was %d.".formatted(subject, chance));
             }
+        }
+
+        private void validateNumericWriteTarget(
+                RpgDslParser.PropertyReferenceContext reference,
+                Set<String> parameters) {
+
+            if (reference.ID().size() == 2
+                    && reference.ID(1).getText().equals("count")) {
+                error(reference.ID(1), "INVALID_WRITE_TARGET",
+                        "Virtual property 'count' cannot be a numeric write target: '%s'."
+                                .formatted(reference.getText()));
+                return;
+            }
+
+            validatePropertyReference(reference, parameters);
         }
 
         private Set<String> resolveItemProperties(String itemName, Deque<String> path) {
