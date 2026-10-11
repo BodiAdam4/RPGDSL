@@ -1,5 +1,7 @@
 package hu.bodiadam.rpg.runtime;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record ActorRuntimeState(String typeName, Map<String, Object> properties) {
@@ -28,5 +30,7 @@ public record ActorRuntimeState(String typeName, Map<String, Object> properties)
                 throw new IllegalArgumentException("ActorRuntimeState property '" + name + "' must contain an Integer, Boolean or String");
             }
         }
+
+        properties = Collections.unmodifiableMap(new LinkedHashMap<>(properties));
     }
 }
