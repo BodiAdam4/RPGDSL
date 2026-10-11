@@ -5,6 +5,7 @@ import hu.bodiadam.rpg.dsl.model.expression.LiteralExpression;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class GameStateFactory {
     public GameState create(GameDefinition definition) {
@@ -30,6 +31,56 @@ public class GameStateFactory {
             variables.put(variable.name(), literal.value());
         }
 
+        var itemRootTypes = new LinkedHashMap<String, String>();
+        var actorRootTypes = new LinkedHashMap<String, String>();
+
+        var registeredRoots = new java.util.LinkedHashSet<String>(variables.keySet());
+
+        for (var item : definition.items().definitions()) {
+            registerRoot(item.name(), item.name(), itemRootTypes, registeredRoots);
+        }
+
+        for (var actor : definition.actors().definitions()) {
+            registerRoot(actor.name(), actor.name(), actorRootTypes, registeredRoots);
+        }
+
+        for (var instance : definition.items().instantiations()) {
+            registerRoot(instance.instanceName(), instance.typeName(), itemRootTypes, registeredRoots);
+        }
+
+        for (var instance : definition.actors().instantiations()) {
+            registerRoot(instance.instanceName(), instance.typeName(), actorRootTypes, registeredRoots);
+        }
+
+        for (var instance : definition.start().itemInstantiations()) {
+            registerRoot(instance.instanceName(), instance.typeName(), itemRootTypes, registeredRoots);
+        }
+
+        for (var instance : definition.start().actorInstantiations()) {
+            registerRoot(instance.instanceName(), instance.typeName(), actorRootTypes, registeredRoots);
+        }
+
         return new GameState(firstScene.name(), variables, Map.of(), Map.of(), Map.of(), firstScene.endScene());
+    }
+
+    private void registerRoot(
+            String rootName,
+            String typeName,
+            Map<String, String> rootTypes,
+            Set<String> registeredRoots) {
+
+        if (rootName == null || rootName.isBlank()) {
+            throw new IllegalArgumentException("Runtime root name must not be null or blank");
+        }
+
+        if (typeName == null || typeName.isBlank()) {
+            throw new IllegalArgumentException("Runtime root typeName must not be null or blank: " + rootName);
+        }
+
+        if (!registeredRoots.add(rootName)) {
+            throw new IllegalArgumentException("Duplicate runtime root: " + rootName);
+        }
+
+        rootTypes.put(rootName, typeName);
     }
 }
