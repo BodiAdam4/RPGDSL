@@ -42,11 +42,16 @@ class GameStateFactoryTest {
     @Test
     void startsWithEmptyInventoryBeforeStartActionsAreExecuted() {
         var definition = parser.parse("""
-                start { give 2 Coin }
-                world { scenes {
-                    scene entrance { description: "The entrance" }
-                } }
-                """);
+        items {
+            stackable item Coin {
+                description: "Coin"
+            }
+        }
+        start { give 2 Coin }
+        world { scenes {
+            scene entrance { description: "The entrance" }
+        } }
+        """);
 
         var state = factory.create(definition);
 
@@ -97,7 +102,13 @@ class GameStateFactoryTest {
         variables.put("health", 12);
         var inventory = new HashMap<String, Integer>();
         inventory.put("Coin", 2);
-        var state = new GameState("entrance", variables, inventory, false);
+        var state = new GameState(
+                "entrance",
+                variables,
+                inventory,
+                Map.of("Coin", new ItemRuntimeState("Coin", Map.of())),
+                Map.of(),
+                false);
 
         variables.put("health", 1);
         inventory.put("Coin", 99);

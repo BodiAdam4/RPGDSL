@@ -9,9 +9,13 @@ import hu.bodiadam.rpg.dsl.model.GameDefinition;
 import hu.bodiadam.rpg.dsl.model.expression.Expression;
 import hu.bodiadam.rpg.dsl.model.expression.LiteralExpression;
 import hu.bodiadam.rpg.dsl.parser.DslParserFacade;
+import hu.bodiadam.rpg.runtime.ActorRuntimeState;
 import hu.bodiadam.rpg.runtime.GameState;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+
+import hu.bodiadam.rpg.runtime.ItemRuntimeState;
 import org.junit.jupiter.api.Test;
 
 class ExpressionEvaluatorTest {
@@ -23,6 +27,8 @@ class ExpressionEvaluatorTest {
             "entrance",
             Map.of("hp", 7, "doorOpen", true, "status", "open"),
             Map.of("GoldCoin", 6, "HealingPotion", 2, "Knife", 1),
+            createItemStates(),
+            createActorStates(),
             false);
 
     @Test
@@ -137,7 +143,7 @@ class ExpressionEvaluatorTest {
     @Test
     void returnsZeroForMissingStackableItemCount() {
         var emptyInventoryState = new GameState(
-                "entrance", state.variables(), Map.of(), false);
+                "entrance", state.variables(), Map.of(), state.itemStates(), state.actorStates(), false);
 
         var result = evaluator.evaluate(
                 reference("GoldCoin.count"),
@@ -322,6 +328,56 @@ class ExpressionEvaluatorTest {
         assertTrue(exception.getMessage().contains("Knife.damage"));
     }
 
+
+    private Map<String, ItemRuntimeState> createItemStates() {
+        var items = new LinkedHashMap<String, ItemRuntimeState>();
+
+        var weaponProperties = new LinkedHashMap<String, Object>();
+        weaponProperties.put("damage", 1);
+        weaponProperties.put("rarity", "Common");
+
+        items.put(
+                "Weapon",
+                new ItemRuntimeState("Weapon", weaponProperties));
+
+        var knifeProperties = new LinkedHashMap<String, Object>();
+        knifeProperties.put("damage", 3);
+        knifeProperties.put("rarity", "Common");
+        knifeProperties.put("healing", 4);
+
+        items.put(
+                "Knife",
+                new ItemRuntimeState("Knife", knifeProperties));
+
+        items.put(
+                "GoldCoin",
+                new ItemRuntimeState("GoldCoin", Map.of("value", 1)));
+
+        items.put(
+                "HealingPotion",
+                new ItemRuntimeState(
+                        "HealingPotion", Map.of("healAmount", 4)));
+
+        return items;
+    }
+
+    private Map<String, ActorRuntimeState> createActorStates() {
+        var actors = new LinkedHashMap<String, ActorRuntimeState>();
+
+        actors.put(
+                "CityGuard",
+                new ActorRuntimeState("CityGuard", Map.of("suspicion", 2)));
+
+        actors.put(
+                "GateCaptain",
+                new ActorRuntimeState("GateCaptain", Map.of("suspicion", 4)));
+
+        actors.put(
+                "captain",
+                new ActorRuntimeState("GateCaptain", Map.of("suspicion", 4)));
+
+        return actors;
+    }
 
     private Object evaluate(Expression expression) {
         return evaluator.evaluate(

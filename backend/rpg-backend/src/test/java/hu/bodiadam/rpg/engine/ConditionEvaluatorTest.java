@@ -15,9 +15,12 @@ import hu.bodiadam.rpg.dsl.model.expression.ReferenceExpression;
 import hu.bodiadam.rpg.dsl.parser.DslParserFacade;
 import hu.bodiadam.rpg.runtime.GameState;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+
+import hu.bodiadam.rpg.runtime.ItemRuntimeState;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -73,6 +76,20 @@ class ConditionEvaluatorTest {
                 }
                 """);
 
+        var itemStates = new LinkedHashMap<String, ItemRuntimeState>();
+
+        itemStates.put(
+                "GoldCoin",
+                new ItemRuntimeState("GoldCoin", Map.of("value", 1)));
+
+        itemStates.put(
+                "HealingPotion",
+                new ItemRuntimeState("HealingPotion", Map.of("healAmount", 4)));
+
+        itemStates.put(
+                "Knife",
+                new ItemRuntimeState("Knife", Map.of("damage", 3)));
+
         state = new GameState(
                 "entrance",
                 Map.of(
@@ -80,8 +97,9 @@ class ConditionEvaluatorTest {
                         "doorOpen", true,
                         "status", "open"),
                 Map.of(
-                        "GoldCoin", 6,
-                        "HealingPotion", 0),
+                        "GoldCoin", 6),
+                itemStates,
+                Map.of(),
                 false);
     }
 
@@ -371,6 +389,8 @@ class ConditionEvaluatorTest {
                 state.currentSceneName(),
                 state.variables(),
                 Map.of(),
+                state.itemStates(),
+                state.actorStates(),
                 false);
 
         assertFalse(evaluator.evaluate(
