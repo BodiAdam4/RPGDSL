@@ -443,6 +443,25 @@ public class GameDefinitionSemanticValidator {
                         "Reference '%s.%s' uses a scalar value as a property root.".formatted(root, property));
                 return;
             }
+            if (property.equals("count")) {
+                ItemDefinition item = null;
+
+                if (resolution == SymbolResolution.ITEM_DEFINITION) {
+                    item = itemDefinitions.get(root);
+                } else if (resolution == SymbolResolution.ITEM_INSTANCE) {
+                    String typeName = itemInstances.get(root);
+                    item = itemDefinitions.get(typeName);
+                }
+
+                if (item != null && item.stackable()) {
+                    return;
+                }
+
+                error(reference.ID(1), "UNKNOWN_PROPERTY",
+                        "Virtual property 'count' requires a stackable item: '%s'."
+                                .formatted(root));
+                return;
+            }
             if (!resolvePropertiesFor(root, resolution).contains(property)) {
                 error(reference.ID(1), "UNKNOWN_PROPERTY",
                         "Unknown property '%s' on '%s'.".formatted(property, root));
