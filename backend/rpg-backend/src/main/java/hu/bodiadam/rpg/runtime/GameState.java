@@ -3,9 +3,11 @@ package hu.bodiadam.rpg.runtime;
 import java.util.Map;
 
 public record GameState(String currentSceneName,
-                        Map<String, Object> variables,
-                        Map<String, Integer> inventory,
-                        boolean finished) {
+        Map<String, Object> variables,
+        Map<String, Integer> inventory,
+        Map<String, ItemRuntimeState> itemStates,
+        Map<String, ActorRuntimeState> actorStates,
+        boolean finished) {
 
     public GameState {
         if (currentSceneName == null || currentSceneName.isBlank()) {
@@ -16,6 +18,12 @@ public record GameState(String currentSceneName,
         }
         if (inventory == null) {
             throw new IllegalArgumentException("inventory must not be null");
+        }
+        if (itemStates == null) {
+            throw new IllegalArgumentException("itemStates must not be null");
+        }
+        if (actorStates == null) {
+            throw new IllegalArgumentException("actorStates must not be null");
         }
 
         for (var entry : variables.entrySet()) {
