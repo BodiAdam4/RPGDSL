@@ -607,6 +607,11 @@ public class GameDefinitionSemanticValidator {
                 String ownerName) {
             Set<String> names = new LinkedHashSet<>();
             for (RpgDslParser.PropertyDefinitionContext property : properties) {
+                if (property.ID().getText().equals("count")) {
+                    error(property.ID(), "RESERVED_PROPERTY_NAME",
+                            "Property 'count' is reserved and cannot be declared on %s '%s'."
+                                    .formatted(ownerKind, ownerName));
+                }
                 if (!names.add(property.ID().getText())) {
                     error(property.ID(), "DUPLICATE_PROPERTY",
                             "Duplicate property '%s' on %s '%s'."
