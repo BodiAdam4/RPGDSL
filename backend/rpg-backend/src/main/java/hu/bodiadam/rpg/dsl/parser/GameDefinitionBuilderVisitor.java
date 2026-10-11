@@ -225,10 +225,6 @@ final class GameDefinitionBuilderVisitor extends RpgDslBaseVisitor<Object> {
         // Egy item definíció stackelhetőséget, öröklést és tetszőleges property-ket is hordozhat.
         boolean stackable = ctx.STACKABLE() != null;
         List<PropertyDefinition> properties = new ArrayList<>(mapProperties(ctx.itemBody().propertyDefinition()));
-        if (stackable && properties.stream().noneMatch(property -> property.name().equals("count"))) {
-            // A stackelhető itemek automatikusan kapnak count property-t már a modellépítés során.
-            properties.add(new PropertyDefinition("count", new LiteralExpression(0)));
-        }
         return new ItemDefinition(
                 ctx.ID(0).getText(),
                 stackable,
