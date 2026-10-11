@@ -2,12 +2,14 @@ package hu.bodiadam.rpg.engine;
 
 import hu.bodiadam.rpg.dsl.model.GameDefinition;
 import hu.bodiadam.rpg.dsl.model.action.GameAction;
+import hu.bodiadam.rpg.dsl.model.action.GiveAction;
 import hu.bodiadam.rpg.dsl.model.expression.Expression;
 import hu.bodiadam.rpg.runtime.GameState;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Component
@@ -37,6 +39,39 @@ public class ActionExecutor {
         }
 
         //Todo: implement action execution logic here
+        if (action instanceof GiveAction give) {
+            String targetName = give.targetName();
+
+            if (targetName == null || targetName.isBlank()) {
+                throw new IllegalArgumentException("GiveAction targetName must not be null or blank");
+            }
+
+            int amount = 1;
+
+            if (give.amount().isPresent()) {
+                amount = resolvePositiveAmount(give.amount().get(), definition, state, ruleParameters, "GiveAction", targetName);
+            }
+
+            int currentCount = state.inventory().getOrDefault(targetName, 0);
+
+            int newCount;
+            try {
+                newCount = Math.addExact(currentCount, amount);
+            } catch (ArithmeticException exception) {
+                var error = new ArithmeticException("GiveAction inventory count overflow for " + targetName + ": " + currentCount + " + " + amount);
+                error.initCause(exception);
+                throw error;
+            }
+
+            var inventory = new HashMap<>(state.inventory());
+            inventory.put(targetName, newCount);
+
+            return new GameState(
+                    state.currentSceneName(),
+                    state.variables(),
+                    inventory,
+                    state.finished());
+        }
         return new GameState(null,null,null,false);
     }
 
