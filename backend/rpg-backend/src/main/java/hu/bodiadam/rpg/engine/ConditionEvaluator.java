@@ -3,6 +3,7 @@ package hu.bodiadam.rpg.engine;
 import hu.bodiadam.rpg.dsl.model.GameDefinition;
 import hu.bodiadam.rpg.dsl.model.condition.Condition;
 import hu.bodiadam.rpg.dsl.model.condition.HasCondition;
+import hu.bodiadam.rpg.dsl.model.condition.LogicalCondition;
 import hu.bodiadam.rpg.runtime.GameState;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,31 @@ public class ConditionEvaluator {
         }
 
         //TODO: Implement the evaluation logic
+        if (condition instanceof LogicalCondition logical) {
+            return evaluateLogical(logical, definition, state, ruleParameters);
+        }
         return false;
     }
+
+    private boolean evaluateLogical(
+            LogicalCondition condition,
+            GameDefinition definition,
+            GameState state,
+            Map<String, Object> ruleParameters) {
+
+        if (condition.operator() == null) {
+            throw new IllegalArgumentException("LogicalCondition operator must not be null");
+        }
+
+        boolean left = evaluate(condition.left(), definition, state, ruleParameters);
+
+        return switch (condition.operator()) {
+            case AND -> left && evaluate(
+                    condition.right(), definition, state, ruleParameters);
+
+            case OR -> left || evaluate(
+                    condition.right(), definition, state, ruleParameters);
+        };
+    }
+
 }
