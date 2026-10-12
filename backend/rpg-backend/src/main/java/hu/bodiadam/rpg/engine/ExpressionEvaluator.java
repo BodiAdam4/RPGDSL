@@ -192,115 +192,6 @@ public class ExpressionEvaluator {
         return matches.get(0);
     }
 
-    private Expression findItemProperty(
-            ItemDefinition item,
-            String root,
-            String property,
-            GameDefinition definition) {
-
-        var visited = new HashSet<String>();
-
-        while (true) {
-            if (!visited.add(item.name())) {
-                throw new IllegalStateException(
-                        "Cyclic item inheritance: " + root + "." + property);
-            }
-
-            for (var candidate : item.properties()) {
-                if (property.equals(candidate.name())) {
-                    return candidate.value();
-                }
-            }
-
-            if (item.parentName().isEmpty()) {
-                throw new IllegalArgumentException(
-                        "Unknown property: " + root + "." + property);
-            }
-
-            item = resolveItemDefinition(item.parentName().get(), definition);
-        }
-    }
-
-    private Expression findActorProperty(
-            ActorDefinition actor,
-            String root,
-            String property,
-            GameDefinition definition) {
-
-        var visited = new HashSet<String>();
-
-        while (true) {
-            if (!visited.add(actor.name())) {
-                throw new IllegalStateException(
-                        "Cyclic actor inheritance: " + root + "." + property);
-            }
-
-            for (var candidate : actor.properties()) {
-                if (property.equals(candidate.name())) {
-                    return candidate.value();
-                }
-            }
-
-            if (actor.parentName().isEmpty()) {
-                throw new IllegalArgumentException(
-                        "Unknown property: " + root + "." + property);
-            }
-
-            actor = resolveActorDefinition(actor.parentName().get(), definition);
-        }
-    }
-
-    private List<RootMatch> collectRootMatches(
-            String root,
-            GameDefinition definition) {
-
-        var matches = new ArrayList<RootMatch>();
-
-        for (var item : definition.items().definitions()) {
-            if (root.equals(item.name())) {
-                matches.add(new RootMatch(
-                        RootCategory.ITEM_DEFINITION, item.name()));
-            }
-        }
-
-        for (var actor : definition.actors().definitions()) {
-            if (root.equals(actor.name())) {
-                matches.add(new RootMatch(
-                        RootCategory.ACTOR_DEFINITION, actor.name()));
-            }
-        }
-
-        for (var instance : definition.items().instantiations()) {
-            if (root.equals(instance.instanceName())) {
-                matches.add(new RootMatch(
-                        RootCategory.ITEM_INSTANCE, instance.typeName()));
-            }
-        }
-
-        for (var instance : definition.start().itemInstantiations()) {
-            if (root.equals(instance.instanceName())) {
-                matches.add(new RootMatch(
-                        RootCategory.ITEM_INSTANCE, instance.typeName()));
-            }
-        }
-
-        for (var instance : definition.actors().instantiations()) {
-            if (root.equals(instance.instanceName())) {
-                matches.add(new RootMatch(
-                        RootCategory.ACTOR_INSTANCE, instance.typeName()));
-            }
-        }
-
-        for (var instance : definition.start().actorInstantiations()) {
-            if (root.equals(instance.instanceName())) {
-                matches.add(new RootMatch(
-                        RootCategory.ACTOR_INSTANCE, instance.typeName()));
-            }
-        }
-
-        return matches;
-    }
-
     private Object requireRuntimeValue(Object value, String source) {
         if (!(value instanceof Integer || value instanceof Boolean || value instanceof String)) {
             throw new IllegalArgumentException(
@@ -309,13 +200,23 @@ public class ExpressionEvaluator {
         return value;
     }
 
-    private enum RootCategory {
-        ITEM_DEFINITION,
-        ACTOR_DEFINITION,
-        ITEM_INSTANCE,
-        ACTOR_INSTANCE
-    }
+    private Object readRuntimeProperty(String root, String property, GameState state) {
 
-    private record RootMatch(RootCategory category, String typeName) {}
-    private record PropertyKey(String root, String property) {}
+        Map<String, Object> properties;
+
+        if (state.itemStates().containsKey(root)) {
+            properties = state.itemStates().get(root).properties();
+        } else if (state.actorStates().containsKey(root)) {
+            properties = state.actorStates().get(root).properties();
+        } else {
+            throw new IllegalArgumentException("Unknown runtime property root: " + root);
+        }
+
+        if (!properties.containsKey(property)) {
+            throw new IllegalArgumentException(
+                    "Unknown runtime property: " + root + "." + property);
+        }
+
+        return requireRuntimeValue(properties.get(property), root + "." + property);
+    }
 }
