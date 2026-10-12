@@ -45,6 +45,7 @@ public class GameDefinitionSemanticValidator {
         private final Map<String, String> actorInstances = new LinkedHashMap<>();
         private final Map<String, Set<String>> resolvedItemProperties = new HashMap<>();
         private final Map<String, Set<String>> resolvedActorProperties = new HashMap<>();
+        private final Map<String, SymbolResolution> rootSymbols = new LinkedHashMap<>();
 
         private ValidationPass(RpgDslParser.ProgramContext programContext, GameDefinition definition) {
             this.programContext = programContext;
@@ -52,6 +53,7 @@ public class GameDefinitionSemanticValidator {
         }
 
         private List<Diagnostic> run() {
+            registerGlobalRoots();
             validateDefinitions();
             validateStartBlocks();
             validateWorld();
@@ -514,15 +516,23 @@ public class GameDefinitionSemanticValidator {
             }
         }
 
-        private void validateNumericWriteTarget(
-                RpgDslParser.PropertyReferenceContext reference,
-                Set<String> parameters) {
+        private void validateNumericWriteTarget(RpgDslParser.PropertyReferenceContext reference, Set<String> parameters) {
 
-            if (reference.ID().size() == 2
-                    && reference.ID(1).getText().equals("count")) {
-                error(reference.ID(1), "INVALID_WRITE_TARGET",
-                        "Virtual property 'count' cannot be a numeric write target: '%s'."
-                                .formatted(reference.getText()));
+            String root = reference.ID(0).getText();
+
+            if (parameters.contains(root)) {
+                error(reference.ID(0), "INVALID_WRITE_TARGET", "Rule parameter '%s' cannot be used as a numeric " + "write-target root: '%s'.".formatted(root, reference.getText()));
+                return;
+            }
+            if (reference.ID().size() == 1) {
+                SymbolResolution resolution = resolvePropertyRoot(root);
+                if (resolution != SymbolResolution.SCALAR && resolution != SymbolResolution.UNKNOWN) {
+                    error(reference.ID(0), "INVALID_WRITE_TARGET", "Object root '%s' cannot be used as a numeric ".formatted(root) + "write target without a property.");
+                    return;
+                }
+            }
+            if (reference.ID().size() == 2 && reference.ID(1).getText().equals("count")) {
+                error(reference.ID(1), "INVALID_WRITE_TARGET", "Virtual property 'count' cannot be a numeric write target: '%s'.".formatted(reference.getText()));
                 return;
             }
 
@@ -598,22 +608,7 @@ public class GameDefinitionSemanticValidator {
         }
 
         private SymbolResolution resolvePropertyRoot(String rootName) {
-            if (variableDefinitions.containsKey(rootName)) {
-                return SymbolResolution.SCALAR;
-            }
-            if (itemInstances.containsKey(rootName)) {
-                return SymbolResolution.ITEM_INSTANCE;
-            }
-            if (actorInstances.containsKey(rootName)) {
-                return SymbolResolution.ACTOR_INSTANCE;
-            }
-            if (itemDefinitions.containsKey(rootName)) {
-                return SymbolResolution.ITEM_DEFINITION;
-            }
-            if (actorDefinitions.containsKey(rootName)) {
-                return SymbolResolution.ACTOR_DEFINITION;
-            }
-            return SymbolResolution.UNKNOWN;
+            return rootSymbols.getOrDefault(rootName, SymbolResolution.UNKNOWN);
         }
 
         private void validateDuplicateProperties(
@@ -649,6 +644,58 @@ public class GameDefinitionSemanticValidator {
 
         private Diagnostic diagnostic(Token token, String code, String message) {
             return new Diagnostic(token.getLine(), token.getCharPositionInLine() + 1, DiagnosticSeverity.ERROR, code, message);
+        }
+
+        private void registerRoot(TerminalNode nameNode, SymbolResolution category) {
+            String name = nameNode.getText();
+            SymbolResolution previousCategory = rootSymbols.putIfAbsent(name, category);
+            if (previousCategory != null) {
+                error(nameNode, "ROOT_NAME_COLLISION", "Root name '%s' is declared as both %s and %s.".formatted(name, previousCategory, category));
+            }
+        }
+
+        private void registerGlobalRoots() {
+            for (var block : programContext.topLevelBlock()) {
+                //variables
+                if (block.variablesBlock() != null) {
+                    for (var variable : block.variablesBlock().variableDefinition()) {
+                        registerRoot(variable.ID(), SymbolResolution.SCALAR);
+                    }
+                }
+                //items
+                if (block.itemsBlock() != null) {
+                    for (var item : block.itemsBlock().itemDefinition()) {
+                        registerRoot(item.ID(0), SymbolResolution.ITEM_DEFINITION);
+                    }
+                    for (var instance : block.itemsBlock().instantiation()) {
+                        registerRoot(instance.ID(0), SymbolResolution.ITEM_INSTANCE);
+                    }
+                }
+                //actors
+                if (block.actorsBlock() != null) {
+                    for (var actor : block.actorsBlock().actorDefinition()) {
+                        registerRoot(actor.ID(0), SymbolResolution.ACTOR_DEFINITION);
+                    }
+                    for (var instance : block.actorsBlock().instantiation()) {
+                        registerRoot(instance.ID(0), SymbolResolution.ACTOR_INSTANCE);
+                    }
+                }
+                //start block
+                if (block.startBlock() != null) {
+                    for (var statement : block.startBlock().statement()) {
+                        var instance = statement.instantiation();
+                        if (instance == null) {
+                            continue;
+                        }
+                        String typeName = instance.ID(1).getText();
+                        if (itemDefinitions.containsKey(typeName)) {
+                            registerRoot(instance.ID(0), SymbolResolution.ITEM_INSTANCE);
+                        } else if (actorDefinitions.containsKey(typeName)) {
+                            registerRoot(instance.ID(0), SymbolResolution.ACTOR_INSTANCE);
+                        }
+                    }
+                }
+            }
         }
     }
 
