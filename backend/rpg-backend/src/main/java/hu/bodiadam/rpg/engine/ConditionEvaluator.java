@@ -8,7 +8,6 @@ import hu.bodiadam.rpg.dsl.model.condition.LogicalCondition;
 import hu.bodiadam.rpg.runtime.GameState;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.expression.ExpressionParser;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -44,6 +43,13 @@ public class ConditionEvaluator {
                 throw new IllegalArgumentException("HasCondition targetName must not be null or blank");
             }
 
+            if (!state.itemStates().containsKey(targetName)) {
+                if (state.actorStates().containsKey(targetName)) {
+                    throw new IllegalArgumentException("HasCondition target cannot be an actor: " + targetName);
+                }
+                throw new IllegalArgumentException("Unknown runtime inventory target: " + targetName);
+            }
+
             int count = state.inventory().getOrDefault(targetName, 0);
             boolean present = count > 0;
 
@@ -53,7 +59,6 @@ public class ConditionEvaluator {
             return present;
         }
 
-        //TODO: Implement the evaluation logic
         if (condition instanceof LogicalCondition logical) {
             return evaluateLogical(logical, definition, state, ruleParameters);
         }
