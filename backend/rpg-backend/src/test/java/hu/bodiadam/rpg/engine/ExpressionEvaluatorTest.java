@@ -1,10 +1,5 @@
 package hu.bodiadam.rpg.engine;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import hu.bodiadam.rpg.dsl.model.GameDefinition;
 import hu.bodiadam.rpg.dsl.model.expression.Expression;
 import hu.bodiadam.rpg.dsl.model.expression.LiteralExpression;
@@ -17,6 +12,8 @@ import java.util.Map;
 
 import hu.bodiadam.rpg.runtime.ItemRuntimeState;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class ExpressionEvaluatorTest {
     private final DslParserFacade parser = new DslParserFacade();
@@ -222,74 +219,6 @@ class ExpressionEvaluatorTest {
     }
 
     @Test
-    void rejectsAmbiguousPropertyRoot() {
-        var actorDefinition = parser.parse("""
-                actors {
-                    actor GoldCoin {
-                        description: "Actor with a conflicting name"
-                        value: 9
-                    }
-                }
-                world {
-                    scenes {
-                        scene entrance {
-                            description: "Entrance"
-                        }
-                    }
-                }
-                """);
-
-        var ambiguousDefinition = new GameDefinition(
-                definition.initPrompt(),
-                definition.items(),
-                actorDefinition.actors(),
-                definition.variables(),
-                definition.start(),
-                definition.rules(),
-                definition.world());
-
-        var expression = reference("GoldCoin.value");
-
-        var exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> evaluator.evaluate(
-                        expression, ambiguousDefinition, state, Map.of()));
-
-        assertTrue(exception.getMessage().contains("Ambiguous"));
-        assertTrue(exception.getMessage().contains("GoldCoin"));
-    }
-
-    @Test
-    void rejectsCyclicPropertyResolution() {
-        var cyclicDefinition = parser.parse("""
-                items {
-                    item Sword {
-                        description: "Sword"
-                        damage: Gem.power
-                    }
-                    item Gem {
-                        description: "Gem"
-                        power: Sword.damage
-                    }
-                }
-                world {
-                    scenes {
-                        scene entrance {
-                            description: "Entrance"
-                        }
-                    }
-                }
-                """);
-
-        var expression = reference("Sword.damage");
-
-        assertThrows(
-                IllegalStateException.class,
-                () -> evaluator.evaluate(
-                        expression, cyclicDefinition, state, Map.of()));
-    }
-
-    @Test
     void rejectsGlobalVariableAsPropertyRootDespiteMatchingItemDefinition() {
         var conflictingDefinition = parser.parse("""
             vars { hp: 7 }
@@ -452,5 +381,418 @@ class ExpressionEvaluatorTest {
                     }
                 }
                 """);
+    }
+
+    @Test
+    void readsImplicitItemPropertyFromRuntimeState() {
+        var definition = parser.parse("""
+            items {
+                item Knife {
+                    description: "Knife"
+                    damage: 3
+                }
+            }
+            world { scenes {
+                scene entrance { description: "Entrance" }
+            } }
+            """);
+
+        var state = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "Knife",
+                        new ItemRuntimeState(
+                                "Knife",
+                                Map.of("damage", 99))),
+                Map.of(),
+                false);
+
+        var result = evaluator.evaluate(
+                reference("Knife.damage"),
+                definition,
+                state,
+                Map.of());
+
+        assertEquals(
+                Integer.valueOf(99),
+                assertInstanceOf(Integer.class, result));
+    }
+    @Test
+    void readsNamedItemPropertyFromRuntimeState() {
+        var definition = parser.parse("""
+            items {
+                item Knife {
+                    description: "Knife"
+                    damage: 3
+                }
+                blade as Knife
+            }
+            world { scenes {
+                scene entrance { description: "Entrance" }
+            } }
+            """);
+
+        var state = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "Knife",
+                        new ItemRuntimeState(
+                                "Knife",
+                                Map.of("damage", 10)),
+                        "blade",
+                        new ItemRuntimeState(
+                                "Knife",
+                                Map.of("damage", 99))),
+                Map.of(),
+                false);
+
+        var result = evaluator.evaluate(
+                reference("blade.damage"),
+                definition,
+                state,
+                Map.of());
+
+        assertEquals(
+                Integer.valueOf(99),
+                assertInstanceOf(Integer.class, result));
+    }
+    @Test
+    void readsItemPropertyWithoutInventoryOwnership() {
+        var definition = createRuntimeReadingDefinition();
+
+        var state = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "Knife",
+                        new ItemRuntimeState(
+                                "Knife", Map.of("damage", 10)),
+                        "blade",
+                        new ItemRuntimeState(
+                                "Knife", Map.of("damage", 99))),
+                Map.of(),
+                false);
+
+        assertTrue(state.inventory().isEmpty());
+
+        assertEquals(
+                Integer.valueOf(10),
+                assertInstanceOf(
+                        Integer.class,
+                        evaluator.evaluate(
+                                reference("Knife.damage"),
+                                definition, state, Map.of())));
+
+        assertEquals(
+                Integer.valueOf(99),
+                assertInstanceOf(
+                        Integer.class,
+                        evaluator.evaluate(
+                                reference("blade.damage"),
+                                definition, state, Map.of())));
+    }
+
+    @Test
+    void readsImplicitActorPropertyFromRuntimeState() {
+        var definition = createRuntimeReadingDefinition();
+
+        var state = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "Guard",
+                        new ActorRuntimeState(
+                                "Guard", Map.of("suspicion", 20))),
+                false);
+
+        var result = evaluator.evaluate(
+                reference("Guard.suspicion"),
+                definition, state, Map.of());
+
+        assertEquals(
+                Integer.valueOf(20),
+                assertInstanceOf(Integer.class, result));
+    }
+
+    @Test
+    void readsNamedActorPropertyFromRuntimeState() {
+        var definition = createRuntimeReadingDefinition();
+
+        var state = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "Guard",
+                        new ActorRuntimeState(
+                                "Guard", Map.of("suspicion", 20)),
+                        "captain",
+                        new ActorRuntimeState(
+                                "Guard", Map.of("suspicion", 40))),
+                false);
+
+        var result = evaluator.evaluate(
+                reference("captain.suspicion"),
+                definition, state, Map.of());
+
+        assertEquals(
+                Integer.valueOf(40),
+                assertInstanceOf(Integer.class, result));
+    }
+
+    @Test
+    void readsVirtualCountFromInventory() {
+        var definition = createRuntimeReadingDefinition();
+
+        var itemStates = Map.of(
+                "GoldCoin",
+                new ItemRuntimeState(
+                        "GoldCoin", Map.of("value", 1)));
+
+        var ownedState = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of("GoldCoin", 6),
+                itemStates,
+                Map.of(),
+                false);
+
+        var unownedState = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of(),
+                itemStates,
+                Map.of(),
+                false);
+
+        assertEquals(
+                Integer.valueOf(6),
+                assertInstanceOf(
+                        Integer.class,
+                        evaluator.evaluate(
+                                reference("GoldCoin.count"),
+                                definition, ownedState, Map.of())));
+
+        assertEquals(
+                Integer.valueOf(0),
+                assertInstanceOf(
+                        Integer.class,
+                        evaluator.evaluate(
+                                reference("GoldCoin.count"),
+                                definition, unownedState, Map.of())));
+
+        assertFalse(
+                itemStates.get("GoldCoin").properties().containsKey("count"));
+    }
+
+    @Test
+    void keepsImplicitAndNamedStackCountsIndependent() {
+        var definition = createRuntimeReadingDefinition();
+
+        var itemStates = Map.of(
+                "GoldCoin",
+                new ItemRuntimeState(
+                        "GoldCoin", Map.of("value", 1)),
+                "purse",
+                new ItemRuntimeState(
+                        "GoldCoin", Map.of("value", 1)));
+
+        var state = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of("GoldCoin", 6, "purse", 2),
+                itemStates,
+                Map.of(),
+                false);
+
+        assertEquals(
+                Integer.valueOf(6),
+                evaluator.evaluate(
+                        reference("GoldCoin.count"),
+                        definition, state, Map.of()));
+
+        assertEquals(
+                Integer.valueOf(2),
+                evaluator.evaluate(
+                        reference("purse.count"),
+                        definition, state, Map.of()));
+
+        var stateWithoutNamedInventoryEntry = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of("GoldCoin", 6),
+                itemStates,
+                Map.of(),
+                false);
+
+        assertEquals(
+                Integer.valueOf(0),
+                evaluator.evaluate(
+                        reference("purse.count"),
+                        definition, stateWithoutNamedInventoryEntry, Map.of()));
+    }
+
+    @Test
+    void ruleParameterShadowsRuntimeRoot() {
+        var definition = createRuntimeReadingDefinition();
+
+        var state = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "Knife",
+                        new ItemRuntimeState(
+                                "Knife", Map.of("damage", 99))),
+                Map.of(
+                        "Guard",
+                        new ActorRuntimeState(
+                                "Guard", Map.of("suspicion", 40))),
+                false);
+
+        var parameters = new LinkedHashMap<String, Object>();
+        parameters.put("Knife", 5);
+        parameters.put("Guard", true);
+
+        var originalParameters = new LinkedHashMap<>(parameters);
+
+        assertEquals(
+                Integer.valueOf(5),
+                evaluator.evaluate(
+                        reference("Knife"),
+                        definition, state, parameters));
+
+        assertEquals(
+                Boolean.TRUE,
+                evaluator.evaluate(
+                        reference("Guard"),
+                        definition, state, parameters));
+
+        var itemError = assertThrows(
+                IllegalArgumentException.class,
+                () -> evaluator.evaluate(
+                        reference("Knife.damage"),
+                        definition, state, parameters));
+
+        var actorError = assertThrows(
+                IllegalArgumentException.class,
+                () -> evaluator.evaluate(
+                        reference("Guard.suspicion"),
+                        definition, state, parameters));
+
+        assertTrue(itemError.getMessage().contains("Knife"));
+        assertTrue(actorError.getMessage().contains("Guard"));
+
+        assertEquals(originalParameters, parameters);
+    }
+
+    @Test
+    void rejectsMissingRuntimeRootWithoutDefinitionFallback() {
+        var definition = createRuntimeReadingDefinition();
+
+        var state = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                false);
+
+        for (String path : new String[] {
+                "Knife.damage",
+                "blade.damage",
+                "Guard.suspicion",
+                "captain.suspicion"
+        }) {
+            var expression = reference(path);
+
+            var exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> evaluator.evaluate(
+                            expression, definition, state, Map.of()),
+                    path);
+
+            String root = path.substring(0, path.indexOf('.'));
+            assertTrue(exception.getMessage().contains(root));
+        }
+    }
+
+    @Test
+    void rejectsMissingRuntimePropertyWithoutDefinitionFallback() {
+        var definition = createRuntimeReadingDefinition();
+
+        var state = new GameState(
+                "entrance",
+                Map.of(),
+                Map.of(),
+                Map.of(
+                        "Knife",
+                        new ItemRuntimeState("Knife", Map.of()),
+                        "blade",
+                        new ItemRuntimeState("Knife", Map.of())),
+                Map.of(
+                        "Guard",
+                        new ActorRuntimeState("Guard", Map.of()),
+                        "captain",
+                        new ActorRuntimeState("Guard", Map.of())),
+                false);
+
+        for (String path : new String[] {
+                "Knife.damage",
+                "blade.damage",
+                "Guard.suspicion",
+                "captain.suspicion"
+        }) {
+            var expression = reference(path);
+
+            var exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> evaluator.evaluate(
+                            expression, definition, state, Map.of()),
+                    path);
+
+            int separator = path.indexOf('.');
+            String root = path.substring(0, separator);
+            String property = path.substring(separator + 1);
+
+            assertTrue(exception.getMessage().contains(root));
+            assertTrue(exception.getMessage().contains(property));
+        }
+    }
+
+    private GameDefinition createRuntimeReadingDefinition() {
+        return parser.parse("""
+            items {
+                item Knife {
+                    description: "Knife"
+                    damage: 3
+                }
+                blade as Knife
+
+                stackable item GoldCoin {
+                    description: "Coin"
+                    value: 1
+                }
+                purse as GoldCoin
+            }
+            actors {
+                actor Guard {
+                    description: "Guard"
+                    suspicion: 2
+                }
+                captain as Guard
+            }
+            world { scenes {
+                scene entrance { description: "Entrance" }
+            } }
+            """);
     }
 }
