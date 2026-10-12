@@ -263,4 +263,269 @@ class GameDefinitionSemanticValidatorTest {
 
         assertEquals(expected, actualCodes, diagnostics.toString());
     }
+
+    @Test
+    void rejectsDeclaredCountOnItem() {
+        var source = """
+            items {
+                stackable item GoldCoin {
+                    description: "Coin"
+                    count: 5
+                }
+            }
+            world {
+                scenes {
+                    scene entrance {
+                        description: "Entrance"
+                    }
+                }
+            }
+            """;
+
+        var parser = new DslParserFacade();
+        var definition = parser.parse(source);
+        var program = parser.parseTree(source);
+
+        var validator = new GameDefinitionSemanticValidator();
+        var result = validator.validate(program, definition);
+
+        assertTrue(
+                result.diagnostics().stream()
+                        .anyMatch(diagnostic ->
+                                diagnostic.code().equals("RESERVED_PROPERTY_NAME")),
+                "Declaring the reserved 'count' property must be rejected");
+    }
+
+    @Test
+    void rejectsDeclaredCountOnActor() {
+        var source = """
+            actors {
+                actor Guard {
+                    description: "Guard"
+                    count: 5
+                }
+            }
+            world {
+                scenes {
+                    scene entrance {
+                        description: "Entrance"
+                    }
+                }
+            }
+            """;
+
+        var parser = new DslParserFacade();
+        var definition = parser.parse(source);
+        var program = parser.parseTree(source);
+
+        var validator = new GameDefinitionSemanticValidator();
+        var result = validator.validate(program, definition);
+
+        assertTrue(
+                result.diagnostics().stream()
+                        .anyMatch(diagnostic ->
+                                diagnostic.code().equals("RESERVED_PROPERTY_NAME")),
+                "Declaring 'count' on an actor must be rejected");
+    }
+    @Test
+    void acceptsVirtualCountOnStackableDefinition() {
+        var source = """
+            items {
+                stackable item GoldCoin {
+                    description: "Coin"
+                }
+            }
+            rules {
+                rule checkCoins {
+                    requires {
+                        GoldCoin.count is at least 1
+                    }
+                    success {}
+                    fail {}
+                }
+            }
+            world {
+                scenes {
+                    scene entrance {
+                        description: "Entrance"
+                    }
+                }
+            }
+            """;
+
+        var parser = new DslParserFacade();
+        var definition = parser.parse(source);
+        var program = parser.parseTree(source);
+
+        var validator = new GameDefinitionSemanticValidator();
+        var result = validator.validate(program, definition);
+
+        assertTrue(
+                result.diagnostics().isEmpty(),
+                "Virtual count on a stackable item definition must be accepted: "
+                        + result.diagnostics());
+    }
+    @Test
+    void acceptsVirtualCountOnStackableNamedInstance() {
+        var source = """
+            items {
+                stackable item GoldCoin {
+                    description: "Coin"
+                }
+                coins as GoldCoin
+            }
+            rules {
+                rule checkCoins {
+                    requires {
+                        coins.count is at least 1
+                    }
+                    success {}
+                    fail {}
+                }
+            }
+            world {
+                scenes {
+                    scene entrance {
+                        description: "Entrance"
+                    }
+                }
+            }
+            """;
+
+        var parser = new DslParserFacade();
+        var definition = parser.parse(source);
+        var program = parser.parseTree(source);
+
+        var validator = new GameDefinitionSemanticValidator();
+        var result = validator.validate(program, definition);
+
+        assertTrue(
+                result.diagnostics().isEmpty(),
+                "Virtual count on a named stackable item instance must be accepted: "
+                        + result.diagnostics());
+    }
+    @Test
+    void rejectsCountOnNonStackableItem() {
+        var source = """
+            items {
+                item Knife {
+                    description: "Knife"
+                    damage: 3
+                }
+            }
+            rules {
+                rule checkKnife {
+                    requires {
+                        Knife.count is at least 1
+                    }
+                    success {}
+                    fail {}
+                }
+            }
+            world {
+                scenes {
+                    scene entrance {
+                        description: "Entrance"
+                    }
+                }
+            }
+            """;
+
+        var parser = new DslParserFacade();
+        var definition = parser.parse(source);
+        var program = parser.parseTree(source);
+
+        var validator = new GameDefinitionSemanticValidator();
+        var result = validator.validate(program, definition);
+
+        assertTrue(
+                result.diagnostics().stream()
+                        .anyMatch(diagnostic ->
+                                diagnostic.code().equals("UNKNOWN_PROPERTY")),
+                "Count on a non-stackable item must be rejected: "
+                        + result.diagnostics());
+    }
+    @Test
+    void rejectsCountOnActor() {
+        var source = """
+            actors {
+                actor Guard {
+                    description: "Guard"
+                    hp: 10
+                }
+            }
+            rules {
+                rule checkGuard {
+                    requires {
+                        Guard.count is at least 1
+                    }
+                    success {}
+                    fail {}
+                }
+            }
+            world {
+                scenes {
+                    scene entrance {
+                        description: "Entrance"
+                    }
+                }
+            }
+            """;
+
+        var parser = new DslParserFacade();
+        var definition = parser.parse(source);
+        var program = parser.parseTree(source);
+
+        var validator = new GameDefinitionSemanticValidator();
+        var result = validator.validate(program, definition);
+
+        assertTrue(
+                result.diagnostics().stream()
+                        .anyMatch(diagnostic ->
+                                diagnostic.code().equals("UNKNOWN_PROPERTY")),
+                "Count on an actor must be rejected: "
+                        + result.diagnostics());
+    }
+    @Test
+    void rejectsCountAsNumericWriteTarget() {
+        for (String action : new String[] {
+                "add 1 to GoldCoin.count",
+                "subtract 1 from GoldCoin.count",
+                "multiply GoldCoin.count by 2",
+                "divide GoldCoin.count by 2"
+        }) {
+            var source = """
+                items {
+                    stackable item GoldCoin {
+                        description: "Coin"
+                    }
+                }
+                start {
+                    %s
+                }
+                world {
+                    scenes {
+                        scene entrance {
+                            description: "Entrance"
+                        }
+                    }
+                }
+                """.formatted(action);
+
+            var parser = new DslParserFacade();
+            var definition = parser.parse(source);
+            var program = parser.parseTree(source);
+
+            var validator = new GameDefinitionSemanticValidator();
+            var result = validator.validate(program, definition);
+
+            assertTrue(
+                    result.diagnostics().stream()
+                            .anyMatch(diagnostic ->
+                                    diagnostic.code().equals(
+                                            "INVALID_WRITE_TARGET")),
+                    "Virtual count must not be writable: "
+                            + action + " -> " + result.diagnostics());
+        }
+    }
 }
