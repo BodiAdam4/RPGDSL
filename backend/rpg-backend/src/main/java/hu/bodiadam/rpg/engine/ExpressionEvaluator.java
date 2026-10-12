@@ -8,7 +8,6 @@ import hu.bodiadam.rpg.dsl.model.expression.LiteralExpression;
 import hu.bodiadam.rpg.dsl.model.expression.ReferenceExpression;
 import hu.bodiadam.rpg.runtime.GameState;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 
 import java.util.*;
 
@@ -33,15 +32,14 @@ public class ExpressionEvaluator {
             throw new IllegalArgumentException("ruleParameters must not be null");
         }
 
-        return evaluate(expression, definition, state, ruleParameters, new HashSet<>());
+        return evaluateExpression(expression, definition, state, ruleParameters);
     }
 
-    private Object evaluate(
+    private Object evaluateExpression(
             Expression expression,
             GameDefinition definition,
             GameState state,
-            Map<String, Object> ruleParameters,
-            Set<PropertyKey> activeProperties) {
+            Map<String, Object> ruleParameters) {
 
         if (expression instanceof LiteralExpression(Object value)) {
             return requireRuntimeValue(value, "literal");
@@ -51,15 +49,13 @@ public class ExpressionEvaluator {
                 String root, java.util.Optional<String> property)) {
 
             if (property.isPresent()) {
-                return resolveProperty(root, property.get(), definition, state, ruleParameters, activeProperties);
+                return resolveProperty(root, property.get(), definition, state, ruleParameters);
             }
 
             return resolveSimpleReference(root, state, ruleParameters);
         }
 
-        throw new IllegalArgumentException(
-                "Unsupported expression type: "
-                        + expression.getClass().getSimpleName());
+        throw new IllegalArgumentException("Unsupported expression type: " + expression.getClass().getSimpleName());
     }
 
     private Object resolveSimpleReference(
@@ -85,69 +81,50 @@ public class ExpressionEvaluator {
             String property,
             GameDefinition definition,
             GameState state,
-            Map<String, Object> ruleParameters,
-            Set<PropertyKey> activeProperties) {
+            Map<String, Object> ruleParameters) {
 
         if (ruleParameters.containsKey(root) || state.variables().containsKey(root)) {
             throw new IllegalArgumentException("Scalar value cannot be used as a property root: " + root + "." + property);
         }
 
-        var key = new PropertyKey(root, property);
-
-        if (!activeProperties.add(key)) {
-            throw new IllegalStateException("Cyclic property resolution: " + root + "." + property);
-        }
-
-        try {
-            return resolvePropertyValue(root, property, definition, state, ruleParameters, activeProperties);
-        } finally {
-            activeProperties.remove(key);
-        }
+        return resolvePropertyValue(root, property, definition, state);
     }
 
     private Object resolvePropertyValue(
             String root,
             String property,
             GameDefinition definition,
-            GameState state,
-            Map<String, Object> ruleParameters,
-            Set<PropertyKey> activeProperties) {
+            GameState state) {
 
-        var matches = collectRootMatches(root, definition);
-        if (matches.isEmpty()) {
-            throw new IllegalArgumentException("Unknown property root: " + root);
-        }
-        if (matches.size() > 1) {
-            throw new IllegalArgumentException("Ambiguous property root: " + root);
-        }
+        if (state.itemStates().containsKey(root)) {
+            var runtimeItem = state.itemStates().get(root);
 
-        var match = matches.get(0);
-        if (match.category() == RootCategory.ITEM_INSTANCE || match.category() == RootCategory.ITEM_DEFINITION) {
-            var item = resolveItemDefinition(match.typeName(), definition);
+            var itemDefinition = resolveItemDefinition(runtimeItem.typeName(), definition);
+
             if (property.equals("count")) {
-                if (!item.stackable()) {
-                    throw new IllegalArgumentException(
-                            "Count requires a stackable item: " + root + ".count");
+                if (!itemDefinition.stackable()) {
+                    throw new IllegalArgumentException("Count requires a stackable item: " + root + ".count");
                 }
 
-                return requireRuntimeValue(
-                        state.inventory().getOrDefault(root, 0),
-                        root + ".count");
+                return requireRuntimeValue(state.inventory().getOrDefault(root, 0), root + ".count");
             }
-            var propertyExpression = findItemProperty(item, root, property, definition);
-            return evaluate(propertyExpression, definition, state, ruleParameters, activeProperties);
+
+            return readRuntimeProperty(root, property, state);
         }
-        if (match.category() == RootCategory.ACTOR_INSTANCE || match.category() == RootCategory.ACTOR_DEFINITION) {
-            var actor = resolveActorDefinition(match.typeName(), definition);
+
+        if (state.actorStates().containsKey(root)) {
+            var runtimeActor = state.actorStates().get(root);
+
+            resolveActorDefinition(runtimeActor.typeName(), definition);
 
             if (property.equals("count")) {
-                throw new IllegalArgumentException(
-                        "Count is not supported for actors: " + root + ".count");
+                throw new IllegalArgumentException("Count is not supported for actors: " + root + ".count");
             }
-            var propertyExpression = findActorProperty(actor, root, property, definition);
-            return evaluate(propertyExpression, definition, state, ruleParameters,activeProperties);
+
+            return readRuntimeProperty(root, property, state);
         }
-        throw new IllegalStateException("Unsupported root category: " + match.category());
+
+        throw new IllegalArgumentException("Unknown runtime property root: " + root);
     }
 
     private ItemDefinition resolveItemDefinition(
